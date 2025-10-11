@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'theme/app_theme.dart';
-import 'screens/splash_screen.dart';
-import 'screens/onboarding_screen.dart';
-import 'screens/login_screen.dart';
-import 'screens/register_screen.dart';
-import 'screens/home_screen.dart';
-import 'screens/chatbot_screen.dart';
-import 'screens/lawyer_discovery_screen.dart';
-import 'screens/lawyer_detail_screen.dart';
-import 'screens/booking_screen.dart';
-import 'screens/video_call_screen.dart';
-import 'screens/profile_screen.dart';
-import 'screens/lawyer_dashboard_screen.dart';
-import 'screens/notifications_screen.dart';
+import 'core/theme/app_theme.dart';
+import 'features/auth/presentation/screens/splash_screen.dart';
+import 'features/auth/presentation/screens/onboarding_screen.dart';
+import 'features/auth/presentation/screens/login_screen.dart';
+import 'features/auth/presentation/screens/register_screen.dart';
+import 'features/profile/presentation/screens/home_screen.dart';
+import 'features/chat/presentation/screens/chatbot_screen.dart';
+import 'features/lawyer/presentation/screens/lawyer_discovery_screen.dart';
+import 'features/lawyer/presentation/screens/lawyer_detail_screen.dart';
+import 'features/booking/presentation/screens/booking_screen.dart';
+import 'features/video_call/presentation/screens/video_call_screen.dart';
+import 'features/profile/presentation/screens/profile_screen.dart';
+import 'features/lawyer/presentation/screens/lawyer_dashboard_screen.dart';
+import 'features/notifications/presentation/screens/notifications_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
