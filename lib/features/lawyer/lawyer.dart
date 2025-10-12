@@ -9,4 +9,3 @@ export 'data/models/review_model.dart';
 // Lawyer presentation exports
 export 'presentation/screens/lawyer_discovery_screen.dart';
 export 'presentation/screens/lawyer_detail_screen.dart';
-export 'presentation/screens/lawyer_dashboard_screen.dart';

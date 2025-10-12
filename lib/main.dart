@@ -12,8 +12,13 @@ import 'features/lawyer/presentation/screens/lawyer_detail_screen.dart';
 import 'features/booking/presentation/screens/booking_screen.dart';
 import 'features/video_call/presentation/screens/video_call_screen.dart';
 import 'features/profile/presentation/screens/profile_screen.dart';
-import 'features/lawyer/presentation/screens/lawyer_dashboard_screen.dart';
 import 'features/notifications/presentation/screens/notifications_screen.dart';
+import 'features/lawyer/lawyer_home_screen.dart';
+import 'features/lawyer/lawyer_clients_screen.dart';
+import 'features/lawyer/lawyer_schedule_screen.dart';
+import 'features/lawyer/lawyer_cases_screen.dart';
+import 'features/lawyer/lawyer_reviews_screen.dart';
+import 'features/lawyer/lawyer_earnings_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -172,8 +177,31 @@ class _AppNavigatorState extends State<AppNavigator> {
           onLogout: _handleLogout,
         );
 
-      case 'lawyer-dashboard':
-        return LawyerDashboardScreen(onBack: () => _navigateTo('home'));
+      case 'lawyer-home':
+        return LawyerHomeScreen(
+          onNavigateToClients: () => _navigateTo('lawyer-clients'),
+          onNavigateToSchedule: () => _navigateTo('lawyer-schedule'),
+          onNavigateToEarnings: () => _navigateTo('lawyer-earnings'),
+          onNavigateToProfile: () => _navigateTo('profile'),
+          onNavigateToNotifications: () => _navigateTo('notifications'),
+          onNavigateToReviews: () => _navigateTo('lawyer-reviews'),
+          onNavigateToCases: () => _navigateTo('lawyer-cases'),
+        );
+
+      case 'lawyer-clients':
+        return LawyerClientsScreen(onBack: () => _navigateTo('lawyer-home'));
+
+      case 'lawyer-schedule':
+        return LawyerScheduleScreen(onBack: () => _navigateTo('lawyer-home'));
+
+      case 'lawyer-cases':
+        return LawyerCasesScreen(onBack: () => _navigateTo('lawyer-home'));
+
+      case 'lawyer-reviews':
+        return LawyerReviewsScreen(onBack: () => _navigateTo('lawyer-home'));
+
+      case 'lawyer-earnings':
+        return LawyerEarningsScreen(onBack: () => _navigateTo('lawyer-home'));
 
       case 'notifications':
         return NotificationsScreen(onBack: () => _navigateTo('home'));
@@ -199,46 +227,105 @@ class _AppNavigatorState extends State<AppNavigator> {
   void _showScreenSelector(BuildContext context) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).cardColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Navigate to Screen',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        minChildSize: 0.5,
+        maxChildSize: 0.9,
+        expand: false,
+        builder: (context, scrollController) => Container(
+          padding: const EdgeInsets.all(16),
+          child: SingleChildScrollView(
+            controller: scrollController,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildScreenChip('Splash', 'splash'),
-                _buildScreenChip('Onboarding', 'onboarding'),
-                _buildScreenChip('Login', 'login'),
-                _buildScreenChip('Register', 'register'),
-                _buildScreenChip('Home', 'home'),
-                _buildScreenChip('Chatbot', 'chatbot'),
-                _buildScreenChip('Lawyers', 'lawyers'),
-                _buildScreenChip('Lawyer Detail', 'lawyer-detail'),
-                _buildScreenChip('Booking', 'booking'),
-                _buildScreenChip('Video Call', 'video-call'),
-                _buildScreenChip('Profile', 'profile'),
-                _buildScreenChip('Dashboard', 'lawyer-dashboard'),
-                _buildScreenChip('Notifications', 'notifications'),
+                Row(
+                  children: [
+                    const Icon(Icons.navigation, color: AppTheme.primaryBlue),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Navigate to Screen',
+                      style:
+                          TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Quick access to all screens',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 24),
+                _buildSection('Auth Screens', [
+                  _buildScreenChip('Splash', 'splash'),
+                  _buildScreenChip('Onboarding', 'onboarding'),
+                  _buildScreenChip('Login', 'login'),
+                  _buildScreenChip('Register', 'register'),
+                ]),
+                const SizedBox(height: 16),
+                _buildSection('Main Screens', [
+                  _buildScreenChip('Home', 'home'),
+                  _buildScreenChip('Chatbot', 'chatbot'),
+                  _buildScreenChip('Profile', 'profile'),
+                  _buildScreenChip('Notifications', 'notifications'),
+                ]),
+                const SizedBox(height: 16),
+                _buildSection('Client Lawyer Screens', [
+                  _buildScreenChip('Lawyers', 'lawyers'),
+                  _buildScreenChip('Lawyer Detail', 'lawyer-detail'),
+                  _buildScreenChip('Booking', 'booking'),
+                  _buildScreenChip('Video Call', 'video-call'),
+                ]),
+                const SizedBox(height: 16),
+                _buildSection('Lawyer Portal', [
+                  _buildScreenChip('Lawyer Home', 'lawyer-home'),
+                  _buildScreenChip('Clients', 'lawyer-clients'),
+                  _buildScreenChip('Schedule', 'lawyer-schedule'),
+                  _buildScreenChip('Cases', 'lawyer-cases'),
+                  _buildScreenChip('Reviews', 'lawyer-reviews'),
+                  _buildScreenChip('Earnings', 'lawyer-earnings'),
+                ]),
+                const SizedBox(height: 16),
               ],
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 
+  Widget _buildSection(String title, List<Widget> chips) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          child: Text(
+            title,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.textSecondary,
+            ),
+          ),
+        ),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: chips,
+        ),
+      ],
+    );
+  }
+
   Widget _buildScreenChip(String label, String screen) {
+    final isActive = _currentScreen == screen;
     return ActionChip(
       label: Text(label),
       onPressed: () {
@@ -246,10 +333,19 @@ class _AppNavigatorState extends State<AppNavigator> {
         _navigateTo(screen);
       },
       backgroundColor:
-          _currentScreen == screen ? AppTheme.primaryBlue : AppTheme.background,
-      labelStyle: TextStyle(
-        color: _currentScreen == screen ? Colors.white : AppTheme.textPrimary,
+          isActive ? AppTheme.primaryBlue : Theme.of(context).cardColor,
+      side: BorderSide(
+        color: isActive ? AppTheme.primaryBlue : Theme.of(context).dividerColor,
+        width: 1,
       ),
+      labelStyle: TextStyle(
+        color: isActive
+            ? Colors.white
+            : Theme.of(context).textTheme.bodyLarge?.color,
+        fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+      ),
+      elevation: isActive ? 2 : 0,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
     );
   }
 }
