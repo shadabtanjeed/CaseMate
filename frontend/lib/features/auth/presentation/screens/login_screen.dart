@@ -6,7 +6,7 @@ import '../providers/auth_provider.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   final VoidCallback onNavigateToRegister;
-  final VoidCallback? onLoginSuccess;
+  final void Function(String? role)? onLoginSuccess;
 
   const LoginScreen({
     super.key,
@@ -40,7 +40,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         );
 
     if (success && mounted) {
-      widget.onLoginSuccess?.call();
+      final user = ref.read(authProvider).user;
+      widget.onLoginSuccess?.call(user?.role);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Login successful!'),

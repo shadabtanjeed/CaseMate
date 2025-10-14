@@ -221,10 +221,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
         yearsOfExperience: yearsOfExperience,
         bio: bio,
       );
-
-      // Auto login after registration
-      await login(email: email, password: password);
-
+      // Do not auto-login after registration. Let UI navigate to Login screen.
+      state = state.copyWith(isLoading: false);
       return true;
     } catch (e) {
       state = state.copyWith(

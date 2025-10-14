@@ -63,18 +63,22 @@ class _AppNavigatorState extends State<AppNavigator> {
     });
   }
 
-  void _handleLogin() {
+  void _handleLogin([String? role]) {
     setState(() {
-      _currentScreen = 'home';
+      if (role == 'lawyer') {
+        _currentScreen = 'lawyer-home';
+      } else {
+        _currentScreen = 'home';
+      }
     });
     _showSnackbar('Welcome back!');
   }
 
   void _handleRegister() {
     setState(() {
-      _currentScreen = 'home';
+      _currentScreen = 'login';
     });
-    _showSnackbar('Account created successfully!');
+    _showSnackbar('Account created successfully! Please login.');
   }
 
   void _handleLogout() {
