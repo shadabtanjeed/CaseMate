@@ -73,3 +73,4 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 /backend/casemate_venv
+/backend/.venv311
