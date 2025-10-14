@@ -1,7 +1,11 @@
-from datetime import datetime
+import string
+from datetime import datetime, timedelta
 from typing import Optional, Tuple
 from bson import ObjectId
-from ..db_async import find_one, insert_one, update_one
+import random
+
+from .email_service import email_service
+from ..db_async import find_one, insert_one, update_one, delete_many
 from pymongo.errors import DuplicateKeyError, PyMongoError
 import logging
 from ..models.user import UserInDB
@@ -85,7 +89,7 @@ class AuthService:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Database error during registration",
             )
-    
+
     @staticmethod
     async def authenticate_user(email: str, password: str) -> Optional[UserInDB]:
         user = await find_one("users", {"email": email})
@@ -126,42 +130,6 @@ class AuthService:
         new_access_token = create_access_token(data={"sub": user_id})
         return new_access_token
 
-    @staticmethod
-    async def request_password_reset(email: str) -> str:
-        user = await find_one("users", {"email": email})
-
-        # Always return success even if user doesn't exist (security)
-        if not user:
-            return create_password_reset_token(email)
-
-        reset_token = create_password_reset_token(email)
-        return reset_token
-
-    @staticmethod
-    async def reset_password(token: str, new_password: str) -> bool:
-        email = verify_password_reset_token(token)
-
-        if email is None:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid or expired reset token",
-            )
-
-        user = await find_one("users", {"email": email})
-
-        if not user:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
-            )
-
-        hashed_password = AuthService._ph.hash(new_password)
-        await update_one(
-            "users",
-            {"_id": user["_id"]},
-            {"$set": {"hashed_password": hashed_password, "updated_at": datetime.utcnow()}},
-        )
-
-        return True
 
     @staticmethod
     async def change_password(user_id: str, old_password: str, new_password: str) -> bool:
@@ -182,6 +150,101 @@ class AuthService:
             "users",
             {"_id": user["_id"]},
             {"$set": {"hashed_password": hashed_password, "updated_at": datetime.utcnow()}},
+        )
+
+        return True
+
+    @staticmethod
+    def _generate_verification_code() -> str:
+        """Generate a 6-digit verification code"""
+        return ''.join(random.choices(string.digits, k=6))
+
+    @staticmethod
+    async def request_password_reset(email: str) -> bool:
+        """Request password reset and send verification code via email"""
+        user = await find_one("users", {"email": email})
+
+        if not user:
+            # Don't reveal if email exists or not for security
+            return True
+
+        # Generate 6-digit code
+        verification_code = AuthService._generate_verification_code()
+
+        # Store in password_reset_codes collection
+        reset_data = {
+            "email": email,
+            "code": verification_code,
+            "created_at": datetime.utcnow(),
+            "expires_at": datetime.utcnow() + timedelta(minutes=15),  # 15 min expiry
+            "used": False
+        }
+
+        try:
+            # Delete any existing unused codes for this email
+            await delete_many("password_reset_codes", {"email": email, "used": False})
+
+            # Insert new code
+            await insert_one("password_reset_codes", reset_data)
+
+            # Send email with verification code
+            await email_service.send_password_reset_code(email, verification_code)
+
+            return True
+        except Exception as e:
+            logging.exception(f"Error creating password reset code: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to process password reset request"
+            )
+
+    @staticmethod
+    async def verify_and_reset_password(email: str, code: str, new_password: str) -> bool:
+        """Verify code and reset password"""
+        # Find valid reset code
+        reset_code = await find_one(
+            "password_reset_codes",
+            {
+                "email": email,
+                "code": code,
+                "used": False,
+                "expires_at": {"$gt": datetime.utcnow()}
+            }
+        )
+
+        if not reset_code:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid or expired verification code"
+            )
+
+        # Find user
+        user = await find_one("users", {"email": email})
+
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+
+        # Update password
+        hashed_password = AuthService._ph.hash(new_password)
+        await update_one(
+            "users",
+            {"_id": user["_id"]},
+            {
+                "$set": {
+                    "hashed_password": hashed_password,
+                    "updated_at": datetime.utcnow()
+                }
+            }
+        )
+
+        # Mark code as used
+        await update_one(
+            "password_reset_codes",
+            {"_id": reset_code["_id"]},
+            {"$set": {"used": True}}
         )
 
         return True
