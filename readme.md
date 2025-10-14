@@ -89,7 +89,7 @@ pip install -r requirements.txt
 Option A — run with uvicorn (development, reload enabled):
 
 ```bash
-uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 Option B — helper python script (already included in the repo):
@@ -128,3 +128,14 @@ MONGODB_URL=your_mongodb_connection_string
 DATABASE_NAME=your_database_name
 SECRET_KEY=your_secret_key
 ```
+
+## Contributing
+
+- Clone the repo and create a new branch for your feature or bugfix.
+- Follow the conventions for the backend:
+  - Inside the folder `/backend/app/services`:
+    - Create folders based on your feature, such as `auth`, `chatbot`, `messaging`, etc.
+    - Inside each folder, create files for different functionalities, e.g., `chatbot_services.py`.
+  - In the folder `/backend/app/routes`:
+    - Create separate files based on the feature, such as `lawyer_routes.py`, `chatbot_routes.py`.
+    - Each file should strictly contain route definitions and simply call functions defined in the corresponding services file. Do not put business logic inside route definitions, except for try-catch blocks or exception handling.

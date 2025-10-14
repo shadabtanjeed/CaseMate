@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../data/chatbot_api_service.dart';
 
 class ChatbotScreen extends StatefulWidget {
   final VoidCallback onBack;
@@ -26,6 +27,8 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     ),
   ];
   String _mode = 'general';
+  final ChatbotApiService _apiService = ChatbotApiService();
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -33,35 +36,42 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     super.dispose();
   }
 
-  void _sendMessage() {
-    if (_messageController.text.trim().isEmpty) return;
+  Future<void> _sendMessage() async {
+    final text = _messageController.text.trim();
+    if (text.isEmpty) return;
 
     setState(() {
-      _messages.add(
-        ChatMessage(
-          isBot: false,
-          message: _messageController.text,
-          timestamp: DateTime.now(),
-        ),
-      );
+      _messages.add(ChatMessage(
+        isBot: false,
+        message: text,
+        timestamp: DateTime.now(),
+      ));
+      _isLoading = true;
     });
-
     _messageController.clear();
 
-    // Simulate bot response
-    Future.delayed(const Duration(seconds: 1), () {
+    try {
+      final answer = await _apiService.getChatbotAnswer(text);
       setState(() {
-        _messages.add(
-          ChatMessage(
-            isBot: true,
-            message:
-                'Based on your query, this seems to be a legal matter that would benefit from professional consultation. I can provide general information, but for specific legal advice, I recommend speaking with a qualified lawyer.',
-            timestamp: DateTime.now(),
-            showLawyerButton: true,
-          ),
-        );
+        _messages.add(ChatMessage(
+          isBot: true,
+          message: answer,
+          timestamp: DateTime.now(),
+        ));
       });
-    });
+    } catch (e) {
+      setState(() {
+        _messages.add(ChatMessage(
+          isBot: true,
+          message: 'Sorry, failed to get a response from the server.',
+          timestamp: DateTime.now(),
+        ));
+      });
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -107,8 +117,28 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.all(16),
-              itemCount: _messages.length,
+              itemCount: _messages.length + (_isLoading ? 1 : 0),
               itemBuilder: (context, index) {
+                if (_isLoading && index == _messages.length) {
+                  return Align(
+                    alignment: Alignment.centerLeft,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8.0),
+                      child: Row(
+                        children: [
+                          const CircleAvatar(
+                            radius: 16,
+                            backgroundColor: AppTheme.accentBlue,
+                            child: Icon(Icons.smart_toy,
+                                size: 16, color: Colors.white),
+                          ),
+                          const SizedBox(width: 8),
+                          const Text('...'),
+                        ],
+                      ),
+                    ),
+                  );
+                }
                 return _buildMessageBubble(_messages[index]);
               },
             ),

@@ -7,6 +7,7 @@ import os
 load_dotenv()
 
 
+
 class Settings(BaseSettings):
     # MongoDB
     MONGODB_URL: str
@@ -18,6 +19,9 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
+
+    # GROQ API
+    groq_api_key: str
     # Email Configuration
     EMAIL_SENDER: str
     EMAIL_PASSWORD: str
@@ -28,6 +32,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         extra = "ignore"  # This allows extra fields in .env without errors
+
 
 
 settings = Settings()
