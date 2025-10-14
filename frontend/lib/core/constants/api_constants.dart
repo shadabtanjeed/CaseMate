@@ -1,10 +1,10 @@
 class ApiConstants {
   // Base URL - for Android emulator use 10.0.2.2 to reach host machine.
   // Change to your backend URL when testing on a physical device or iOS simulator.
-  // static const String baseUrl = 'http://10.0.2.2:8000/api';
+  static const String baseUrl = 'http://10.0.2.2:8000/api';
 
   // shadab
-  static const String baseUrl = 'http://192.168.0.232:8000/api';
+  // static const String baseUrl = 'http://192.168.0.232:8000/api';
 
   // Auth endpoints
   static const String register = '/auth/register';
