@@ -1,24 +1,28 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from typing import Optional
 from datetime import datetime
+
 
 class UserBase(BaseModel):
     email: EmailStr
     full_name: str
 
+
 class UserRegister(UserBase):
     password: str = Field(..., min_length=6)
     role: str = Field(..., pattern="^(user|lawyer)$")
-    
+
     # Lawyer-specific fields
     license_id: Optional[str] = None
     specialization: Optional[str] = None
     years_of_experience: Optional[int] = None
     bio: Optional[str] = None
 
+
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
+
 
 class UserResponse(UserBase):
     id: str
@@ -27,7 +31,7 @@ class UserResponse(UserBase):
     is_verified: bool
     is_approved: bool
     created_at: datetime
-    
+
     # Lawyer-specific fields
     license_id: Optional[str] = None
     specialization: Optional[str] = None
@@ -39,12 +43,25 @@ class UserResponse(UserBase):
     class Config:
         from_attributes = True
 
+
 class PasswordResetRequest(BaseModel):
+    """Request password reset - sends verification code"""
     email: EmailStr
 
+
 class PasswordReset(BaseModel):
-    token: str
+    """Reset password with verification code"""
+    email: EmailStr
+    code: str = Field(..., min_length=6, max_length=6)
     new_password: str = Field(..., min_length=6)
+
+    @field_validator('code')
+    @classmethod
+    def validate_code(cls, v):
+        if not v.isdigit():
+            raise ValueError('Code must contain only digits')
+        return v
+
 
 class PasswordChange(BaseModel):
     old_password: str
