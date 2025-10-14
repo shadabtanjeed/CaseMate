@@ -5,6 +5,7 @@
 .env.*.local
 backend/.env
 backend/.env.*
+backend/.venv311
 
 # Python
 __pycache__/
@@ -71,3 +72,4 @@ coverage.xml
 *.cover
 .hypothesis/
 .pytest_cache/
+/backend/casemate_venv
