@@ -11,6 +11,7 @@ from ..models.user import UserInDB
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
+
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register(user_data: UserRegister):
     """Register a new user or lawyer"""
@@ -32,35 +33,38 @@ async def register(user_data: UserRegister):
         total_cases=user.total_cases,
     )
 
+
 @router.post("/login", response_model=Token)
 async def login(credentials: UserLogin):
     """Login and get access/refresh tokens"""
     user = await auth_service.authenticate_user(credentials.email, credentials.password)
-    
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
         )
-    
+
     if not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Account is inactive",
         )
-    
+
     access_token, refresh_token = await auth_service.create_tokens(str(user.id))
-    
+
     return Token(
         access_token=access_token,
         refresh_token=refresh_token,
     )
+
 
 @router.post("/refresh", response_model=dict)
 async def refresh_token(token_data: RefreshTokenRequest):
     """Get new access token using refresh token"""
     new_access_token = await auth_service.refresh_access_token(token_data.refresh_token)
     return {"access_token": new_access_token}
+
 
 @router.get("/me", response_model=UserResponse)
 async def get_current_user_info(current_user: UserInDB = Depends(get_current_active_user)):
@@ -82,24 +86,6 @@ async def get_current_user_info(current_user: UserInDB = Depends(get_current_act
         total_cases=current_user.total_cases,
     )
 
-@router.post("/password-reset/request")
-async def request_password_reset(reset_request: PasswordResetRequest):
-    """Request password reset email"""
-    reset_token = await auth_service.request_password_reset(reset_request.email)
-    
-    # Send email (currently just logs)
-    await email_service.send_password_reset_email(reset_request.email, reset_token)
-    
-    return {
-        "message": "If the email exists, a password reset link has been sent",
-        "reset_token": reset_token  # Remove in production!
-    }
-
-@router.post("/password-reset/confirm")
-async def reset_password(reset_data: PasswordReset):
-    """Reset password using token"""
-    await auth_service.reset_password(reset_data.token, reset_data.new_password)
-    return {"message": "Password reset successful"}
 
 @router.post("/password/change")
 async def change_password(
@@ -113,3 +99,24 @@ async def change_password(
         password_data.new_password
     )
     return {"message": "Password changed successfully"}
+
+
+@router.post("/password/forgot")
+async def forgot_password(request: PasswordResetRequest):
+    """Request password reset - sends 6-digit code to email"""
+    await auth_service.request_password_reset(request.email)
+    return {
+        "message": "If the email exists, a verification code has been sent",
+        "expires_in_minutes": 15
+    }
+
+
+@router.post("/password/reset")
+async def reset_password(reset_data: PasswordReset):
+    """Reset password using verification code"""
+    await auth_service.verify_and_reset_password(
+        reset_data.email,
+        reset_data.code,
+        reset_data.new_password
+    )
+    return {"message": "Password reset successfully"}

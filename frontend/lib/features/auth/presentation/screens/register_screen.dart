@@ -87,7 +87,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
         );
 
     if (success && mounted) {
-      widget.onRegisterSuccess?.call();
+      // After successful registration, navigate to the Login screen.
+      widget.onNavigateToLogin();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Registration successful!'),
@@ -247,15 +248,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
               ),
             ),
             validator: (value) {
-                    if (value == null || value.isEmpty) {
-                        return 'Please enter a password';
-                      }
-                      if (value.length < 6) {
-                        return 'Password must be at least 6 characters';
-                      }
-                      if (value.length > 72) {
-                        return 'Password cannot be longer than 72 bytes. Please shorten it.';
-                      }
+              if (value == null || value.isEmpty) {
+                return 'Please enter a password';
+              }
+              if (value.length < 6) {
+                return 'Password must be at least 6 characters';
+              }
               return null;
             },
           ),

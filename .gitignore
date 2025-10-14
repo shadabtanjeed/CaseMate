@@ -45,9 +45,9 @@ backend/venv/
 .vscode/
 
 # Logs
-*.log
-logs/
-backend/logs/
+# *.log
+# logs/
+# backend/logs/
 
 # Database
 *.db

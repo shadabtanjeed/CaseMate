@@ -45,3 +45,14 @@ async def delete_one(collection: str, filter: Dict) -> Any:
     except Exception as e:
         logging.exception('Error in delete_one')
         raise
+
+
+async def delete_many(collection: str, filter: Dict) -> Any:
+    """Delete multiple documents from a collection"""
+    db = get_database()
+    coll = db[collection]
+    try:
+        return await asyncio.to_thread(lambda: coll.delete_many(filter))
+    except Exception as e:
+        logging.exception('Error in delete_many')
+        raise
