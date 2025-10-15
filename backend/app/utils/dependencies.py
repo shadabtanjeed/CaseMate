@@ -20,7 +20,10 @@ async def get_current_user(
             detail="Invalid authentication credentials",
         )
 
+    # Try users then lawyers collection
     user = await find_one("users", {"_id": ObjectId(user_id)})
+    if not user:
+        user = await find_one("lawyers", {"_id": ObjectId(user_id)})
 
     if user is None:
         raise HTTPException(

@@ -31,6 +31,11 @@ class UserInDB(BaseModel):
     is_verified: bool = True  # Auto-verified for now
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
+    # User-specific fields
+    phone: Optional[str] = None
+    location: Optional[str] = None
+    education: Optional[str] = None
+    achievements: Optional[str] = None
     
     # Lawyer-specific fields (optional)
     license_id: Optional[str] = None

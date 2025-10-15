@@ -28,15 +28,21 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
   final _userNameController = TextEditingController();
   final _userEmailController = TextEditingController();
   final _userPasswordController = TextEditingController();
+  final _userPhoneController = TextEditingController();
+  final _userLocationController = TextEditingController();
 
   // Lawyer form controllers
   final _lawyerNameController = TextEditingController();
   final _lawyerEmailController = TextEditingController();
   final _lawyerPasswordController = TextEditingController();
+  final _lawyerPhoneController = TextEditingController();
   final _licenseIdController = TextEditingController();
   final _specializationController = TextEditingController();
   final _experienceController = TextEditingController();
   final _bioController = TextEditingController();
+  final _lawyerLocationController = TextEditingController();
+  final _educationController = TextEditingController();
+  final _achievementsController = TextEditingController();
 
   @override
   void initState() {
@@ -50,6 +56,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
     _userNameController.dispose();
     _userEmailController.dispose();
     _userPasswordController.dispose();
+    _userPhoneController.dispose();
+    _userLocationController.dispose();
     _lawyerNameController.dispose();
     _lawyerEmailController.dispose();
     _lawyerPasswordController.dispose();
@@ -57,6 +65,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
     _specializationController.dispose();
     _experienceController.dispose();
     _bioController.dispose();
+  _lawyerPhoneController.dispose();
+    _lawyerLocationController.dispose();
+    _educationController.dispose();
+    _achievementsController.dispose();
     super.dispose();
   }
 
@@ -77,13 +89,17 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
               ? _userNameController.text.trim()
               : _lawyerNameController.text.trim(),
           role: isUserTab ? 'user' : 'lawyer',
+      phone: isUserTab ? _userPhoneController.text.trim() : _lawyerPhoneController.text.trim(),
+    location: isUserTab ? _userLocationController.text.trim() : _lawyerLocationController.text.trim(),
           licenseId: isUserTab ? null : _licenseIdController.text.trim(),
           specialization:
               isUserTab ? null : _specializationController.text.trim(),
           yearsOfExperience: isUserTab
               ? null
               : int.tryParse(_experienceController.text.trim()),
-          bio: isUserTab ? null : _bioController.text.trim(),
+      bio: isUserTab ? null : _bioController.text.trim(),
+      education: isUserTab ? null : _educationController.text.trim(),
+      achievements: isUserTab ? null : _achievementsController.text.trim(),
         );
 
     if (success && mounted) {
@@ -229,6 +245,35 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
           ),
           const SizedBox(height: 16),
           TextFormField(
+            controller: _userPhoneController,
+            keyboardType: TextInputType.phone,
+            decoration: const InputDecoration(
+              labelText: 'Phone Number',
+              prefixIcon: Icon(Icons.phone_outlined),
+            ),
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Please enter your phone number';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: _userLocationController,
+            decoration: const InputDecoration(
+              labelText: 'Location',
+              prefixIcon: Icon(Icons.location_on_outlined),
+            ),
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Please enter your location';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 16),
+          TextFormField(
             controller: _userPasswordController,
             obscureText: _obscurePassword,
             decoration: InputDecoration(
@@ -361,6 +406,47 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                 }
                 return null;
               },
+            ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _lawyerPhoneController,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(
+                  labelText: 'Phone Number',
+                  prefixIcon: Icon(Icons.phone_outlined),
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter your phone number';
+                  }
+                  return null;
+                },
+              ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _lawyerLocationController,
+              decoration: const InputDecoration(
+                labelText: 'Location',
+                prefixIcon: Icon(Icons.location_on_outlined),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _educationController,
+              decoration: const InputDecoration(
+                labelText: 'Education',
+                prefixIcon: Icon(Icons.school_outlined),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _achievementsController,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                labelText: 'Achievements',
+                alignLabelWithHint: true,
+                prefixIcon: Icon(Icons.emoji_events_outlined),
+              ),
             ),
             const SizedBox(height: 16),
             TextFormField(

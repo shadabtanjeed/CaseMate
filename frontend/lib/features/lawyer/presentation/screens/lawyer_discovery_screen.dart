@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../presentation/providers/lawyer_provider.dart';
 
-class LawyerDiscoveryScreen extends StatefulWidget {
+class LawyerDiscoveryScreen extends ConsumerStatefulWidget {
   final VoidCallback onBack;
   final Function(int) onSelectLawyer;
 
@@ -12,63 +14,13 @@ class LawyerDiscoveryScreen extends StatefulWidget {
   });
 
   @override
-  State<LawyerDiscoveryScreen> createState() => _LawyerDiscoveryScreenState();
+  ConsumerState<LawyerDiscoveryScreen> createState() => _LawyerDiscoveryScreenState();
 }
 
-class _LawyerDiscoveryScreenState extends State<LawyerDiscoveryScreen> {
+class _LawyerDiscoveryScreenState extends ConsumerState<LawyerDiscoveryScreen> {
   final TextEditingController _searchController = TextEditingController();
-
-  final List<LawyerCard> lawyers = [
-    LawyerCard(
-      id: 1,
-      name: 'Dr. Sarah Johnson',
-      specialization: 'Criminal Law',
-      rating: 4.9,
-      reviews: 124,
-      experience: 12,
-      location: 'New York, NY',
-      fee: 150,
-      verified: true,
-      bio:
-          'Experienced criminal defense attorney with a track record of success.',
-    ),
-    LawyerCard(
-      id: 2,
-      name: 'Mr. Michael Chen',
-      specialization: 'Property Law',
-      rating: 4.8,
-      reviews: 98,
-      experience: 10,
-      location: 'Los Angeles, CA',
-      fee: 120,
-      verified: true,
-      bio: 'Specializing in real estate and property disputes.',
-    ),
-    LawyerCard(
-      id: 3,
-      name: 'Ms. Emily Rodriguez',
-      specialization: 'Family Law',
-      rating: 4.9,
-      reviews: 156,
-      experience: 15,
-      location: 'Chicago, IL',
-      fee: 140,
-      verified: true,
-      bio: 'Compassionate approach to family law matters.',
-    ),
-    LawyerCard(
-      id: 4,
-      name: 'Dr. James Williams',
-      specialization: 'Corporate Law',
-      rating: 4.7,
-      reviews: 89,
-      experience: 8,
-      location: 'San Francisco, CA',
-      fee: 180,
-      verified: true,
-      bio: 'Expert in corporate transactions and compliance.',
-    ),
-  ];
+  String? _selectedSpecialization;
+  double? _selectedMinRating;
 
   @override
   void dispose() {
@@ -77,20 +29,50 @@ class _LawyerDiscoveryScreenState extends State<LawyerDiscoveryScreen> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    // trigger initial load
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(lawyerListNotifierProvider.notifier).search();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final state = ref.watch(lawyerListNotifierProvider);
     return Scaffold(
       body: SafeArea(
         child: Column(
           children: [
             _buildHeader(context),
             Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: lawyers.length,
-                itemBuilder: (context, index) {
-                  return _buildLawyerCard(lawyers[index]);
-                },
-              ),
+              child: state.isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : state.error != null
+                      ? Center(child: Text('Error: ${state.error}'))
+                      : state.lawyers.isEmpty
+                          ? const Center(child: Text('No lawyers found'))
+                          : ListView.builder(
+                              padding: const EdgeInsets.all(16),
+                              itemCount: state.lawyers.length,
+                              itemBuilder: (context, index) {
+                                final l = state.lawyers[index];
+                                return _buildLawyerCard(
+                                  LawyerCard(
+                                    id: l.id,
+                                    name: l.name,
+                                    specialization: l.specialization,
+                                    rating: l.rating,
+                                    reviews: l.reviews,
+                                    experience: l.experience,
+                                    location: l.location,
+                                    fee: l.fee,
+                                    verified: l.verified,
+                                    bio: l.bio,
+                                  ),
+                                );
+                              },
+                            ),
             ),
           ],
         ),
@@ -134,6 +116,7 @@ class _LawyerDiscoveryScreenState extends State<LawyerDiscoveryScreen> {
               Expanded(
                 child: TextField(
                   controller: _searchController,
+                  onSubmitted: (v) => ref.read(lawyerListNotifierProvider.notifier).search(q: v, specialization: _selectedSpecialization, minRating: _selectedMinRating),
                   decoration: InputDecoration(
                     hintText: 'Search by name or specialization...',
                     prefixIcon: const Icon(Icons.search),
@@ -338,7 +321,7 @@ class _LawyerDiscoveryScreenState extends State<LawyerDiscoveryScreen> {
                 DropdownMenuItem(
                     value: 'corporate', child: Text('Corporate Law')),
               ],
-              onChanged: (value) {},
+              onChanged: (value) => _selectedSpecialization = value,
             ),
             const SizedBox(height: 16),
             const Text('Minimum Rating'),
@@ -352,13 +335,21 @@ class _LawyerDiscoveryScreenState extends State<LawyerDiscoveryScreen> {
                 DropdownMenuItem(value: '4.0', child: Text('4.0+ Stars')),
                 DropdownMenuItem(value: '3.5', child: Text('3.5+ Stars')),
               ],
-              onChanged: (value) {},
+              onChanged: (value) => _selectedMinRating = value != null ? double.tryParse(value) : null,
             ),
             const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: () {
+                  // apply filters and search
+                  ref.read(lawyerListNotifierProvider.notifier).search(
+                    q: _searchController.text.trim().isEmpty ? null : _searchController.text.trim(),
+                    specialization: _selectedSpecialization,
+                    minRating: _selectedMinRating,
+                  );
+                  Navigator.pop(context);
+                },
                 child: const Text('Apply Filters'),
               ),
             ),

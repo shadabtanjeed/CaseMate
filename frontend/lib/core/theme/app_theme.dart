@@ -122,7 +122,7 @@ class AppTheme {
           vertical: 14,
         ),
       ),
-      cardTheme: CardThemeData(
+      cardTheme: CardTheme(
         color: white,
         elevation: 0,
         shape: RoundedRectangleBorder(

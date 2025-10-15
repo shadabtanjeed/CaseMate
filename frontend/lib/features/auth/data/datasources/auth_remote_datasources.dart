@@ -18,6 +18,10 @@ abstract class AuthRemoteDataSource {
     String? specialization,
     int? yearsOfExperience,
     String? bio,
+    String? phone, // Added phone parameter
+    String? location, // Added location parameter
+    String? education,
+    String? achievements,
   });
 
   Future<UserModel> getCurrentUser(String accessToken);
@@ -72,12 +76,20 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     String? specialization,
     int? yearsOfExperience,
     String? bio,
+    String? phone, // Added phone parameter
+    String? location, // Added location parameter
+    String? education,
+    String? achievements,
   }) async {
     final Map<String, dynamic> body = {
       'email': email,
       'password': password,
       'full_name': fullName,
       'role': role,
+      'phone': phone, // Include phone in the request body
+      'location': location, // Include location in the request body
+      'education': education,
+      'achievements': achievements,
     };
 
     if (role == 'lawyer') {

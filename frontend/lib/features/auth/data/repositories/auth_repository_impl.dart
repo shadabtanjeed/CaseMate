@@ -42,20 +42,28 @@ class AuthRepositoryImpl implements AuthRepository {
     required String password,
     required String fullName,
     required String role,
+    String? education,
+    String? achievements,
     String? licenseId,
     String? specialization,
     int? yearsOfExperience,
     String? bio,
+    String? phone, // Added phone parameter
+    String? location, // Added location parameter
   }) async {
     final userModel = await remoteDataSource.register(
       email: email,
       password: password,
       fullName: fullName,
       role: role,
+      education: education,
+      achievements: achievements,
       licenseId: licenseId,
       specialization: specialization,
       yearsOfExperience: yearsOfExperience,
       bio: bio,
+      phone: phone, // Pass phone to remoteDataSource
+      location: location, // Pass location to remoteDataSource
     );
 
     // Note: After registration, user still needs to login
