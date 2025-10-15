@@ -377,7 +377,11 @@ Hello! I'm CaseMateBot, your AI legal assistant. How can I help you today?
             const SizedBox(width: 8),
             IconButton(
               icon: const Icon(Icons.mic),
-              onPressed: () {},
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Voice input coming soon')),
+                );
+              },
               color: AppTheme.textSecondary,
             ),
             CircleAvatar(
