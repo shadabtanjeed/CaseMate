@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
+import 'data/schedule_service.dart';
 
 class LawyerScheduleScreen extends StatefulWidget {
   final VoidCallback onBack;
@@ -13,12 +14,90 @@ class LawyerScheduleScreen extends StatefulWidget {
 class _LawyerScheduleScreenState extends State<LawyerScheduleScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  DateTime _selectedDate = DateTime.now();
+  final ScheduleService _scheduleService = ScheduleService();
+
+  // Weekly schedule: weekday -> list of time slots
+  Map<String, List<Map<String, String>>> _weeklySchedule = {
+    'Monday': [],
+    'Tuesday': [],
+    'Wednesday': [],
+    'Thursday': [],
+    'Friday': [],
+    'Saturday': [],
+    'Sunday': [],
+  };
+
+  // Track which weekdays are enabled
+  Map<String, bool> _weekdayEnabled = {
+    'Monday': false,
+    'Tuesday': false,
+    'Wednesday': false,
+    'Thursday': false,
+    'Friday': false,
+    'Saturday': false,
+    'Sunday': false,
+  };
+
+  String currentLawyerEmail =
+      'lawyer@example.com'; // replace with real user email
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _loadScheduleFromBackend();
+  }
+
+  Future<void> _loadScheduleFromBackend() async {
+    setState(() => _isLoading = true);
+    try {
+      final response = await _scheduleService.getSchedule(currentLawyerEmail);
+      // Response format: { email, weekly_schedule: [{ weekday, slots: [{start, end}] }] }
+      // This is now a recurring weekly pattern
+      if (response['weekly_schedule'] != null) {
+        final weeklySchedule = response['weekly_schedule'] as List;
+        // Clear existing schedule
+        _weeklySchedule = {
+          'Monday': [],
+          'Tuesday': [],
+          'Wednesday': [],
+          'Thursday': [],
+          'Friday': [],
+          'Saturday': [],
+          'Sunday': [],
+        };
+        _weekdayEnabled = {
+          'Monday': false,
+          'Tuesday': false,
+          'Wednesday': false,
+          'Thursday': false,
+          'Friday': false,
+          'Saturday': false,
+          'Sunday': false,
+        };
+
+        for (var daySchedule in weeklySchedule) {
+          final weekday = daySchedule['weekday'] as String;
+          final slots = daySchedule['slots'] as List;
+
+          if (_weeklySchedule.containsKey(weekday)) {
+            _weekdayEnabled[weekday] = true;
+            _weeklySchedule[weekday] = slots
+                .map((s) => {
+                      'start': s['start'].toString(),
+                      'end': s['end'].toString(),
+                    })
+                .toList();
+          }
+        }
+      }
+    } catch (e) {
+      // 404 or other error - keep all weekdays unselected
+      print('No schedule found or error loading: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -87,6 +166,12 @@ class _LawyerScheduleScreenState extends State<LawyerScheduleScreen>
                     fontWeight: FontWeight.w600,
                   ),
                 ),
+              ),
+              // Save button to persist schedule to backend
+              IconButton(
+                icon: const Icon(Icons.save, color: Colors.white),
+                onPressed: _saveSchedule,
+                tooltip: 'Save Schedule',
               ),
               IconButton(
                 icon: const Icon(Icons.calendar_month, color: Colors.white),
@@ -272,54 +357,51 @@ class _LawyerScheduleScreenState extends State<LawyerScheduleScreen>
 
   Widget _buildDayItem(
       String day, String date, bool isSelected, int appointments) {
-    return InkWell(
-      onTap: () {},
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-        decoration: BoxDecoration(
-          color: isSelected ? AppTheme.primaryBlue : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          children: [
-            Text(
-              day,
-              style: TextStyle(
-                fontSize: 12,
-                color: isSelected ? Colors.white : AppTheme.textSecondary,
-              ),
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+      decoration: BoxDecoration(
+        color: isSelected ? AppTheme.primaryBlue : Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          Text(
+            day,
+            style: TextStyle(
+              fontSize: 12,
+              color: isSelected ? Colors.white : AppTheme.textSecondary,
             ),
-            const SizedBox(height: 4),
-            Text(
-              date,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: isSelected ? Colors.white : AppTheme.textPrimary,
-              ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            date,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: isSelected ? Colors.white : AppTheme.textPrimary,
             ),
-            const SizedBox(height: 4),
-            if (appointments > 0)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? Colors.white
-                      : AppTheme.accentBlue.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  '$appointments',
-                  style: TextStyle(
-                    fontSize: 10,
-                    color:
-                        isSelected ? AppTheme.primaryBlue : AppTheme.accentBlue,
-                    fontWeight: FontWeight.w600,
-                  ),
+          ),
+          const SizedBox(height: 4),
+          if (appointments > 0)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? Colors.white
+                    : AppTheme.accentBlue.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                '$appointments',
+                style: TextStyle(
+                  fontSize: 10,
+                  color:
+                      isSelected ? AppTheme.primaryBlue : AppTheme.accentBlue,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-          ],
-        ),
+            ),
+        ],
       ),
     );
   }
@@ -452,7 +534,109 @@ class _LawyerScheduleScreenState extends State<LawyerScheduleScreen>
     );
   }
 
+  void _showSetAvailabilityDialog() async {
+    // This is now deprecated - using _addTimeSlot instead
+  }
+
+  Future<void> _addTimeSlot(String weekday) async {
+    final start = await showTimePicker(
+        context: context, initialTime: const TimeOfDay(hour: 9, minute: 0));
+    if (start == null) return;
+
+    final end = await showTimePicker(
+        context: context,
+        initialTime: TimeOfDay(hour: start.hour + 1, minute: start.minute));
+    if (end == null) return;
+
+    final slot = {
+      'start':
+          '${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')}',
+      'end':
+          '${end.hour.toString().padLeft(2, '0')}:${end.minute.toString().padLeft(2, '0')}'
+    };
+
+    setState(() {
+      _weeklySchedule[weekday]!.add(slot);
+      _weekdayEnabled[weekday] = true;
+    });
+  }
+
+  Future<void> _editTimeSlot(String weekday, int index) async {
+    final currentSlot = _weeklySchedule[weekday]![index];
+    final currentStart = TimeOfDay(
+      hour: int.parse(currentSlot['start']!.split(':')[0]),
+      minute: int.parse(currentSlot['start']!.split(':')[1]),
+    );
+    final currentEnd = TimeOfDay(
+      hour: int.parse(currentSlot['end']!.split(':')[0]),
+      minute: int.parse(currentSlot['end']!.split(':')[1]),
+    );
+
+    final start =
+        await showTimePicker(context: context, initialTime: currentStart);
+    if (start == null) return;
+
+    final end = await showTimePicker(context: context, initialTime: currentEnd);
+    if (end == null) return;
+
+    final slot = {
+      'start':
+          '${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')}',
+      'end':
+          '${end.hour.toString().padLeft(2, '0')}:${end.minute.toString().padLeft(2, '0')}'
+    };
+
+    setState(() {
+      _weeklySchedule[weekday]![index] = slot;
+    });
+  }
+
+  Future<void> _saveSchedule() async {
+    // Convert weekday-based schedule to weekly_schedule format for backend
+    // This creates a recurring weekly pattern
+    final List<Map<String, dynamic>> weeklyScheduleList = [];
+
+    _weeklySchedule.forEach((weekday, slots) {
+      if (_weekdayEnabled[weekday]! && slots.isNotEmpty) {
+        weeklyScheduleList.add({
+          'weekday': weekday,
+          'slots': slots,
+        });
+      }
+    });
+
+    final payload = {
+      'email': currentLawyerEmail,
+      'weekly_schedule': weeklyScheduleList,
+    };
+
+    try {
+      await _scheduleService.saveSchedule(currentLawyerEmail, payload);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Schedule saved successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to save schedule: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   Widget _buildAvailabilityTab() {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -479,29 +663,37 @@ class _LawyerScheduleScreenState extends State<LawyerScheduleScreen>
             ),
           ),
           const SizedBox(height: 24),
-          Text(
-            'Weekly Schedule',
-            style: Theme.of(context).textTheme.titleLarge,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Weekly Schedule',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              ElevatedButton.icon(
+                onPressed: _saveSchedule,
+                icon: const Icon(Icons.save, size: 18),
+                label: const Text('Save Schedule'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryBlue,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 16),
-          _buildDaySchedule(
-              'Monday', ['9:00 AM - 12:00 PM', '2:00 PM - 6:00 PM'], true),
-          _buildDaySchedule(
-              'Tuesday', ['9:00 AM - 12:00 PM', '2:00 PM - 6:00 PM'], true),
-          _buildDaySchedule(
-              'Wednesday', ['9:00 AM - 12:00 PM', '2:00 PM - 5:00 PM'], true),
-          _buildDaySchedule(
-              'Thursday', ['9:00 AM - 12:00 PM', '2:00 PM - 6:00 PM'], true),
-          _buildDaySchedule(
-              'Friday', ['9:00 AM - 12:00 PM', '2:00 PM - 4:00 PM'], true),
-          _buildDaySchedule('Saturday', ['10:00 AM - 2:00 PM'], true),
-          _buildDaySchedule('Sunday', [], false),
+          ..._weeklySchedule.keys.map((day) => _buildDaySchedule(
+                day,
+                _weeklySchedule[day]!,
+                _weekdayEnabled[day]!,
+              )),
         ],
       ),
     );
   }
 
-  Widget _buildDaySchedule(String day, List<String> slots, bool isAvailable) {
+  Widget _buildDaySchedule(
+      String day, List<Map<String, String>> slots, bool isAvailable) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -527,63 +719,88 @@ class _LawyerScheduleScreenState extends State<LawyerScheduleScreen>
               ),
               Switch(
                 value: isAvailable,
-                onChanged: (val) {},
+                onChanged: (val) {
+                  setState(() {
+                    _weekdayEnabled[day] = val;
+                    if (!val) {
+                      // Clear slots when disabled
+                      _weeklySchedule[day] = [];
+                    }
+                  });
+                },
                 activeColor: AppTheme.primaryBlue,
               ),
             ],
           ),
           if (isAvailable && slots.isNotEmpty) ...[
             const SizedBox(height: 12),
-            ...slots
-                .map((slot) => Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.access_time,
-                              size: 16, color: AppTheme.textSecondary),
-                          const SizedBox(width: 8),
-                          Text(
-                            slot,
-                            style: const TextStyle(
-                              color: AppTheme.textSecondary,
-                              fontSize: 14,
-                            ),
-                          ),
-                          const Spacer(),
-                          IconButton(
-                            icon: const Icon(Icons.edit, size: 18),
-                            onPressed: () {},
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.delete,
-                                size: 18, color: Colors.red),
-                            onPressed: () {},
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                          ),
-                        ],
+            ...slots.asMap().entries.map((entry) {
+              final index = entry.key;
+              final slot = entry.value;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: [
+                    const Icon(Icons.access_time,
+                        size: 16, color: AppTheme.textSecondary),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${slot['start']} - ${slot['end']}',
+                      style: const TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 14,
                       ),
-                    ))
-                .toList(),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.edit, size: 18),
+                      onPressed: () => _editTimeSlot(day, index),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                    IconButton(
+                      icon:
+                          const Icon(Icons.delete, size: 18, color: Colors.red),
+                      onPressed: () {
+                        setState(() {
+                          _weeklySchedule[day]!.removeAt(index);
+                        });
+                      },
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                  ],
+                ),
+              );
+            }),
             const SizedBox(height: 8),
             TextButton.icon(
-              onPressed: () {},
+              onPressed: () => _addTimeSlot(day),
               icon: const Icon(Icons.add, size: 16),
               label: const Text('Add Time Slot'),
             ),
           ],
           if (isAvailable && slots.isEmpty)
-            const Padding(
-              padding: EdgeInsets.only(top: 8),
-              child: Text(
-                'No time slots set',
-                style: TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 13,
-                  fontStyle: FontStyle.italic,
-                ),
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'No time slots set',
+                    style: TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 13,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextButton.icon(
+                    onPressed: () => _addTimeSlot(day),
+                    icon: const Icon(Icons.add, size: 16),
+                    label: const Text('Add Time Slot'),
+                  ),
+                ],
               ),
             ),
         ],
@@ -591,50 +808,5 @@ class _LawyerScheduleScreenState extends State<LawyerScheduleScreen>
     );
   }
 
-  void _showSetAvailabilityDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Set Availability'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            DropdownButtonFormField<String>(
-              decoration: const InputDecoration(labelText: 'Day'),
-              items: const [
-                DropdownMenuItem(value: 'monday', child: Text('Monday')),
-                DropdownMenuItem(value: 'tuesday', child: Text('Tuesday')),
-                DropdownMenuItem(value: 'wednesday', child: Text('Wednesday')),
-              ],
-              onChanged: (val) {},
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              decoration: const InputDecoration(
-                labelText: 'Start Time',
-                suffixIcon: Icon(Icons.access_time),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              decoration: const InputDecoration(
-                labelText: 'End Time',
-                suffixIcon: Icon(Icons.access_time),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-  }
+  // old dialog removed — using custom time-picker based dialog in new implementation
 }
