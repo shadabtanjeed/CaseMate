@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../data/chatbot_api_service.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
@@ -19,12 +20,13 @@ class ChatbotScreen extends StatefulWidget {
 
 class _ChatbotScreenState extends State<ChatbotScreen> {
   final TextEditingController _messageController = TextEditingController();
+  final FocusNode _textFocusNode = FocusNode();
 
   final List<ChatMessage> _messages = [
     ChatMessage(
       isBot: true,
       message: '''
-Hello! I'm LegalBot, your AI legal assistant. How can I help you today?
+Hello! I'm CaseMateBot, your AI legal assistant. How can I help you today?
 
 **Please be aware that my responses are for informational purposes only and do not constitute legal advice. The app will not be liable for any actions taken based on my responses.**
 ''',
@@ -38,6 +40,7 @@ Hello! I'm LegalBot, your AI legal assistant. How can I help you today?
   @override
   void dispose() {
     _messageController.dispose();
+    _textFocusNode.dispose();
     super.dispose();
   }
 
@@ -174,6 +177,32 @@ Hello! I'm LegalBot, your AI legal assistant. How can I help you today?
       onPressed: () {
         setState(() {
           _mode = mode;
+          // When entering case analysis, show a coming-soon message and disable input
+          if (_mode == 'case') {
+            _messages.clear();
+            _messages.add(ChatMessage(
+              isBot: true,
+              message:
+                  'Case analysis is coming soon. This feature will be available in a future release.',
+              timestamp: DateTime.now(),
+            ));
+          } else {
+            // On switching back to general, ensure the friendly welcome message exists
+            if (_messages.isEmpty ||
+                (_messages.length == 1 &&
+                    _messages[0].message.contains('coming soon'))) {
+              _messages.clear();
+              _messages.add(ChatMessage(
+                isBot: true,
+                message: '''
+Hello! I'm CaseMateBot, your AI legal assistant. How can I help you today?
+
+**Please be aware that my responses are for informational purposes only and do not constitute legal advice. The app will not be liable for any actions taken based on my responses.**
+''',
+                timestamp: DateTime.now(),
+              ));
+            }
+          }
         });
       },
       style: ElevatedButton.styleFrom(
@@ -276,23 +305,56 @@ Hello! I'm LegalBot, your AI legal assistant. How can I help you today?
           children: [
             IconButton(
               icon: const Icon(Icons.attach_file),
-              onPressed: () {},
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                      content: Text('Attachment feature coming soon')),
+                );
+              },
               color: AppTheme.textSecondary,
             ),
             Expanded(
-              child: TextField(
-                controller: _messageController,
-                decoration: InputDecoration(
-                  hintText: 'Type your message...',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(24),
+              child: RawKeyboardListener(
+                focusNode: _textFocusNode,
+                onKey: (event) {
+                  if (event is RawKeyDownEvent &&
+                      event.logicalKey == LogicalKeyboardKey.enter) {
+                    // if shift is pressed, allow newline
+                    if (event.isShiftPressed) {
+                      final newText = _messageController.text + '\n';
+                      _messageController.text = newText;
+                      _messageController.selection = TextSelection.fromPosition(
+                          TextPosition(offset: newText.length));
+                    } else {
+                      // prevent send in case mode
+                      if (_mode != 'case') {
+                        _sendMessage();
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text('Case analysis coming soon')));
+                      }
+                    }
+                  }
+                },
+                child: TextField(
+                  controller: _messageController,
+                  decoration: InputDecoration(
+                    hintText: _mode == 'case'
+                        ? 'Case analysis coming soon'
+                        : 'Type your message...',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                   ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
+                  enabled: _mode != 'case',
+                  keyboardType: TextInputType.multiline,
+                  maxLines: null,
                 ),
-                onSubmitted: (_) => _sendMessage(),
               ),
             ),
             const SizedBox(width: 8),
