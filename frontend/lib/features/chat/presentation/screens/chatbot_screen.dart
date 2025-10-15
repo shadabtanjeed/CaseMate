@@ -141,13 +141,30 @@ Hello! I'm CaseMateBot, your AI legal assistant. How can I help you today?
                                 size: 16, color: Colors.white),
                           ),
                           const SizedBox(width: 8),
-                          const Text('...'),
+                          const TypingIndicator(),
                         ],
                       ),
                     ),
                   );
                 }
-                return _buildMessageBubble(_messages[index]);
+                final bubble = _buildMessageBubble(_messages[index]);
+                // small fade+slide animation using TweenAnimationBuilder
+                final isBot = _messages[index].isBot;
+                return TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0.0, end: 1.0),
+                  duration: const Duration(milliseconds: 300),
+                  builder: (context, value, child) {
+                    final dx = isBot ? -20 * (1 - value) : 20 * (1 - value);
+                    return Opacity(
+                      opacity: value,
+                      child: Transform.translate(
+                        offset: Offset(dx, 0),
+                        child: child,
+                      ),
+                    );
+                  },
+                  child: bubble,
+                );
               },
             ),
           ),
@@ -378,6 +395,66 @@ Hello! I'm CaseMateBot, your AI legal assistant. How can I help you today?
 
   String _formatTime(DateTime time) {
     return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+  }
+}
+
+// Simple animated typing indicator (three bouncing dots)
+class TypingIndicator extends StatefulWidget {
+  const TypingIndicator({super.key});
+
+  @override
+  State<TypingIndicator> createState() => _TypingIndicatorState();
+}
+
+class _TypingIndicatorState extends State<TypingIndicator>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 900))
+      ..repeat();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 24,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: List.generate(3, (i) {
+          return AnimatedBuilder(
+            animation: _ctrl,
+            builder: (context, child) {
+              final t = (_ctrl.value + i * 0.2) % 1.0;
+              final scale = 0.4 + (0.6 * (0.5 - (t - 0.5).abs()) * 2);
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                child: Transform.scale(
+                  scale: scale,
+                  child: Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryBlue,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+              );
+            },
+          );
+        }),
+      ),
+    );
   }
 }
 
