@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../data/chatbot_api_service.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 
 class ChatbotScreen extends StatefulWidget {
   final VoidCallback onBack;
@@ -18,11 +19,15 @@ class ChatbotScreen extends StatefulWidget {
 
 class _ChatbotScreenState extends State<ChatbotScreen> {
   final TextEditingController _messageController = TextEditingController();
+
   final List<ChatMessage> _messages = [
     ChatMessage(
       isBot: true,
-      message:
-          "Hello! I'm LegalBot, your AI legal assistant. How can I help you today?",
+      message: '''
+Hello! I'm LegalBot, your AI legal assistant. How can I help you today?
+
+**Please be aware that my responses are for informational purposes only and do not constitute legal advice. The app will not be liable for any actions taken based on my responses.**
+''',
       timestamp: DateTime.now(),
     ),
   ];
@@ -51,11 +56,11 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     _messageController.clear();
 
     try {
-      final answer = await _apiService.getChatbotAnswer(text);
+      final String answer = await _apiService.getChatbotAnswer(text);
       setState(() {
         _messages.add(ChatMessage(
           isBot: true,
-          message: answer,
+          message: (answer.isNotEmpty) ? answer : 'I do not know',
           timestamp: DateTime.now(),
         ));
       });
@@ -211,10 +216,21 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                         : AppTheme.borderColor,
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: Text(
-                    message.message,
-                    style: const TextStyle(color: AppTheme.textPrimary),
-                  ),
+                  // render markdown for bot messages, plain text for user messages
+                  child: message.isBot
+                      ? MarkdownBody(
+                          data: message.message,
+                          selectable: false,
+                          styleSheet:
+                              MarkdownStyleSheet.fromTheme(Theme.of(context))
+                                  .copyWith(
+                            p: const TextStyle(color: AppTheme.textPrimary),
+                          ),
+                        )
+                      : Text(
+                          message.message,
+                          style: const TextStyle(color: AppTheme.textPrimary),
+                        ),
                 ),
                 const SizedBox(height: 4),
                 Text(
