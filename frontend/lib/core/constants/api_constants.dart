@@ -1,7 +1,19 @@
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 class ApiConstants {
-  // Base URL - for Android emulator use 10.0.2.2 to reach host machine.
-  // Change to your backend URL when testing on a physical device or iOS simulator.
-  static const String baseUrl = 'http://10.0.2.2:8000/api';
+  // Base URL - prefer SERVER_URL from .env, else default to emulator host.
+  static String _envOrDefault(String key, String defaultVal) {
+    final v = dotenv.env[key];
+    if (v == null) return defaultVal;
+    final t = v.trim();
+    return t.isEmpty ? defaultVal : t;
+  }
+
+  static final String baseHost =
+      _envOrDefault('SERVER_URL', 'http://10.0.2.2:8000')
+          .replaceAll(RegExp(r'/$'), '');
+
+  static final String baseUrl = '$baseHost/api';
 
   // shadab
   // static const String baseUrl = 'http://192.168.0.232:8000/api';
