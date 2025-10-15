@@ -21,6 +21,7 @@ class ChatbotScreen extends StatefulWidget {
 class _ChatbotScreenState extends State<ChatbotScreen> {
   final TextEditingController _messageController = TextEditingController();
   final FocusNode _textFocusNode = FocusNode();
+  final ScrollController _scrollController = ScrollController();
 
   final List<ChatMessage> _messages = [
     ChatMessage(
@@ -41,7 +42,31 @@ Hello! I'm CaseMateBot, your AI legal assistant. How can I help you today?
   void dispose() {
     _messageController.dispose();
     _textFocusNode.dispose();
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // ensure initial content is visible at bottom
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+  }
+
+  void _scrollToBottom() {
+    // wait for the next frame so the ListView has updated its extent
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
+      try {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      } catch (_) {
+        // if animation fails (e.g. during dispose), ignore
+      }
+    });
   }
 
   Future<void> _sendMessage() async {
@@ -56,6 +81,7 @@ Hello! I'm CaseMateBot, your AI legal assistant. How can I help you today?
       ));
       _isLoading = true;
     });
+    _scrollToBottom();
     _messageController.clear();
 
     try {
@@ -67,6 +93,7 @@ Hello! I'm CaseMateBot, your AI legal assistant. How can I help you today?
           timestamp: DateTime.now(),
         ));
       });
+      _scrollToBottom();
     } catch (e) {
       setState(() {
         _messages.add(ChatMessage(
@@ -75,6 +102,7 @@ Hello! I'm CaseMateBot, your AI legal assistant. How can I help you today?
           timestamp: DateTime.now(),
         ));
       });
+      _scrollToBottom();
     } finally {
       setState(() {
         _isLoading = false;
@@ -124,6 +152,7 @@ Hello! I'm CaseMateBot, your AI legal assistant. How can I help you today?
           _buildModeSelector(),
           Expanded(
             child: ListView.builder(
+              controller: _scrollController,
               padding: const EdgeInsets.all(16),
               itemCount: _messages.length + (_isLoading ? 1 : 0),
               itemBuilder: (context, index) {
@@ -221,6 +250,7 @@ Hello! I'm CaseMateBot, your AI legal assistant. How can I help you today?
             }
           }
         });
+        _scrollToBottom();
       },
       style: ElevatedButton.styleFrom(
         backgroundColor:
