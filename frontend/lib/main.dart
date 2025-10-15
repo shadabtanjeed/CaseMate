@@ -116,8 +116,7 @@ class _AppNavigatorState extends State<AppNavigator> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        behavior: SnackBarBehavior.fixed,
         backgroundColor: AppTheme.primaryBlue,
       ),
     );

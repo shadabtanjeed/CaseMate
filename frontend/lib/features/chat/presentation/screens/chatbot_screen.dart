@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../data/chatbot_api_service.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 
 class ChatbotScreen extends StatefulWidget {
   final VoidCallback onBack;
@@ -18,11 +20,17 @@ class ChatbotScreen extends StatefulWidget {
 
 class _ChatbotScreenState extends State<ChatbotScreen> {
   final TextEditingController _messageController = TextEditingController();
+  final FocusNode _textFocusNode = FocusNode();
+  final ScrollController _scrollController = ScrollController();
+
   final List<ChatMessage> _messages = [
     ChatMessage(
       isBot: true,
-      message:
-          "Hello! I'm LegalBot, your AI legal assistant. How can I help you today?",
+      message: '''
+Hello! I'm CaseMateBot, your AI legal assistant. How can I help you today?
+
+**Please be aware that my responses are for informational purposes only and do not constitute legal advice. The app will not be liable for any actions taken based on my responses.**
+''',
       timestamp: DateTime.now(),
     ),
   ];
@@ -33,7 +41,32 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   @override
   void dispose() {
     _messageController.dispose();
+    _textFocusNode.dispose();
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // ensure initial content is visible at bottom
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+  }
+
+  void _scrollToBottom() {
+    // wait for the next frame so the ListView has updated its extent
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
+      try {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      } catch (_) {
+        // if animation fails (e.g. during dispose), ignore
+      }
+    });
   }
 
   Future<void> _sendMessage() async {
@@ -48,17 +81,19 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
       ));
       _isLoading = true;
     });
+    _scrollToBottom();
     _messageController.clear();
 
     try {
-      final answer = await _apiService.getChatbotAnswer(text);
+      final String answer = await _apiService.getChatbotAnswer(text);
       setState(() {
         _messages.add(ChatMessage(
           isBot: true,
-          message: answer,
+          message: (answer.isNotEmpty) ? answer : 'I do not know',
           timestamp: DateTime.now(),
         ));
       });
+      _scrollToBottom();
     } catch (e) {
       setState(() {
         _messages.add(ChatMessage(
@@ -67,6 +102,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
           timestamp: DateTime.now(),
         ));
       });
+      _scrollToBottom();
     } finally {
       setState(() {
         _isLoading = false;
@@ -116,6 +152,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
           _buildModeSelector(),
           Expanded(
             child: ListView.builder(
+              controller: _scrollController,
               padding: const EdgeInsets.all(16),
               itemCount: _messages.length + (_isLoading ? 1 : 0),
               itemBuilder: (context, index) {
@@ -133,13 +170,30 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                                 size: 16, color: Colors.white),
                           ),
                           const SizedBox(width: 8),
-                          const Text('...'),
+                          const TypingIndicator(),
                         ],
                       ),
                     ),
                   );
                 }
-                return _buildMessageBubble(_messages[index]);
+                final bubble = _buildMessageBubble(_messages[index]);
+                // small fade+slide animation using TweenAnimationBuilder
+                final isBot = _messages[index].isBot;
+                return TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0.0, end: 1.0),
+                  duration: const Duration(milliseconds: 300),
+                  builder: (context, value, child) {
+                    final dx = isBot ? -20 * (1 - value) : 20 * (1 - value);
+                    return Opacity(
+                      opacity: value,
+                      child: Transform.translate(
+                        offset: Offset(dx, 0),
+                        child: child,
+                      ),
+                    );
+                  },
+                  child: bubble,
+                );
               },
             ),
           ),
@@ -169,7 +223,34 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
       onPressed: () {
         setState(() {
           _mode = mode;
+          // When entering case analysis, show a coming-soon message and disable input
+          if (_mode == 'case') {
+            _messages.clear();
+            _messages.add(ChatMessage(
+              isBot: true,
+              message:
+                  'Case analysis is coming soon. This feature will be available in a future release.',
+              timestamp: DateTime.now(),
+            ));
+          } else {
+            // On switching back to general, ensure the friendly welcome message exists
+            if (_messages.isEmpty ||
+                (_messages.length == 1 &&
+                    _messages[0].message.contains('coming soon'))) {
+              _messages.clear();
+              _messages.add(ChatMessage(
+                isBot: true,
+                message: '''
+Hello! I'm CaseMateBot, your AI legal assistant. How can I help you today?
+
+**Please be aware that my responses are for informational purposes only and do not constitute legal advice. The app will not be liable for any actions taken based on my responses.**
+''',
+                timestamp: DateTime.now(),
+              ));
+            }
+          }
         });
+        _scrollToBottom();
       },
       style: ElevatedButton.styleFrom(
         backgroundColor:
@@ -211,10 +292,21 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                         : AppTheme.borderColor,
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: Text(
-                    message.message,
-                    style: const TextStyle(color: AppTheme.textPrimary),
-                  ),
+                  // render markdown for bot messages, plain text for user messages
+                  child: message.isBot
+                      ? MarkdownBody(
+                          data: message.message,
+                          selectable: false,
+                          styleSheet:
+                              MarkdownStyleSheet.fromTheme(Theme.of(context))
+                                  .copyWith(
+                            p: const TextStyle(color: AppTheme.textPrimary),
+                          ),
+                        )
+                      : Text(
+                          message.message,
+                          style: const TextStyle(color: AppTheme.textPrimary),
+                        ),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -260,29 +352,66 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
           children: [
             IconButton(
               icon: const Icon(Icons.attach_file),
-              onPressed: () {},
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                      content: Text('Attachment feature coming soon')),
+                );
+              },
               color: AppTheme.textSecondary,
             ),
             Expanded(
-              child: TextField(
-                controller: _messageController,
-                decoration: InputDecoration(
-                  hintText: 'Type your message...',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(24),
+              child: RawKeyboardListener(
+                focusNode: _textFocusNode,
+                onKey: (event) {
+                  if (event is RawKeyDownEvent &&
+                      event.logicalKey == LogicalKeyboardKey.enter) {
+                    // if shift is pressed, allow newline
+                    if (event.isShiftPressed) {
+                      final newText = _messageController.text + '\n';
+                      _messageController.text = newText;
+                      _messageController.selection = TextSelection.fromPosition(
+                          TextPosition(offset: newText.length));
+                    } else {
+                      // prevent send in case mode
+                      if (_mode != 'case') {
+                        _sendMessage();
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text('Case analysis coming soon')));
+                      }
+                    }
+                  }
+                },
+                child: TextField(
+                  controller: _messageController,
+                  decoration: InputDecoration(
+                    hintText: _mode == 'case'
+                        ? 'Case analysis coming soon'
+                        : 'Type your message...',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                   ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
+                  enabled: _mode != 'case',
+                  keyboardType: TextInputType.multiline,
+                  maxLines: null,
                 ),
-                onSubmitted: (_) => _sendMessage(),
               ),
             ),
             const SizedBox(width: 8),
             IconButton(
               icon: const Icon(Icons.mic),
-              onPressed: () {},
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Voice input coming soon')),
+                );
+              },
               color: AppTheme.textSecondary,
             ),
             CircleAvatar(
@@ -300,6 +429,66 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
 
   String _formatTime(DateTime time) {
     return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+  }
+}
+
+// Simple animated typing indicator (three bouncing dots)
+class TypingIndicator extends StatefulWidget {
+  const TypingIndicator({super.key});
+
+  @override
+  State<TypingIndicator> createState() => _TypingIndicatorState();
+}
+
+class _TypingIndicatorState extends State<TypingIndicator>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 900))
+      ..repeat();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 24,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: List.generate(3, (i) {
+          return AnimatedBuilder(
+            animation: _ctrl,
+            builder: (context, child) {
+              final t = (_ctrl.value + i * 0.2) % 1.0;
+              final scale = 0.4 + (0.6 * (0.5 - (t - 0.5).abs()) * 2);
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                child: Transform.scale(
+                  scale: scale,
+                  child: Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryBlue,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+              );
+            },
+          );
+        }),
+      ),
+    );
   }
 }
 
