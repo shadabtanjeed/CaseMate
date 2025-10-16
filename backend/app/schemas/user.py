@@ -63,6 +63,19 @@ class PasswordResetRequest(BaseModel):
     email: EmailStr
 
 
+class VerifyResetCode(BaseModel):
+    """Verify reset code before password reset"""
+    email: EmailStr
+    code: str = Field(..., min_length=6, max_length=6)
+
+    @field_validator('code')
+    @classmethod
+    def validate_code(cls, v):
+        if not v.isdigit():
+            raise ValueError('Code must contain only digits')
+        return v
+
+
 class PasswordReset(BaseModel):
     """Reset password with verification code"""
     email: EmailStr
