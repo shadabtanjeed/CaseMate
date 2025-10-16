@@ -43,6 +43,12 @@ async def list_lawyers(
     return {"data": result}
 
 
+@router.get("/lawyers/specializations")
+async def list_specializations():
+    specs = await lawyer_service.get_unique_specializations()
+    return {"data": specs}
+
+
 @router.get("/lawyers/{lawyer_id}")
 async def get_lawyer(lawyer_id: str):
     """Return a single lawyer by id (string of ObjectId).
