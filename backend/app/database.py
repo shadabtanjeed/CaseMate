@@ -1,3 +1,5 @@
+import asyncio
+import logging
 from pymongo import MongoClient
 from .config import settings
 from typing import Optional
@@ -9,29 +11,40 @@ class Database:
 
 db = Database()
 
+_logger = logging.getLogger(__name__)
+
 
 async def connect_to_mongo():
-    """Connect using synchronous pymongo.MongoClient. This is quick and
-    safe to call during FastAPI startup. Using sync client with async
-    wrappers avoids motor compatibility issues on newer Python versions.
+    """Create a synchronous MongoClient on a background thread and ping the server.
+
+    Performing the connection and ping on a thread avoids blocking the asyncio
+    event loop during FastAPI's startup lifecycle. A short serverSelectionTimeoutMS
+    is used so failures surface quickly.
     """
-    # MongoClient handles SRV URIs (dnspython should be installed)
-    db.client = MongoClient(settings.MONGODB_URL)
-    # Accessing server_info forces a connection attempt
+
+    def _connect():
+        # Use a short server selection timeout so bad URIs don't hang for long
+        client = MongoClient(settings.MONGODB_URL, serverSelectionTimeoutMS=5000)
+        # force a connection attempt
+        client.admin.command("ping")
+        return client
+
     try:
-        db.client.admin.command('ping')
-    except Exception as e:
-        # Let the exception propagate for visibility during startup
+        db.client = await asyncio.to_thread(_connect)
+        _logger.info("Connected to MongoDB")
+        print("Connected to MongoDB")
+    except Exception:
+        _logger.exception("Failed to connect to MongoDB during startup")
+        # Re-raise so FastAPI startup fails visibly and the error is logged
         raise
-    print("Connected to MongoDB")
 
 
 async def close_mongo_connection():
     if db.client:
         try:
-            db.client.close()
+            await asyncio.to_thread(lambda: db.client.close())
         except Exception:
-            pass
+            _logger.exception("Error closing MongoDB connection")
         print("Closed MongoDB connection")
 
 
