@@ -596,6 +596,14 @@ class _LawyerDetailScreenState extends ConsumerState<LawyerDetailScreen>
                                     lawyer: lawyer,
                                     selectedSlot: _selectedSlot!,
                                     selectedDate: _getSelectedDateString(),
+                                    onBookingSuccess: () {
+                                      // Pop all screens and go back to home
+                                      // Pop booking screen
+                                      Navigator.popUntil(
+                                          context, (route) => route.isFirst);
+                                      // Trigger the main app onBack callback to handle state
+                                      widget.onBack();
+                                    },
                                   ),
                                 ),
                               );

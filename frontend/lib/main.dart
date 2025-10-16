@@ -109,13 +109,6 @@ class _AppNavigatorState extends State<AppNavigator> {
     });
   }
 
-  void _handleBookingConfirm() {
-    setState(() {
-      _currentScreen = 'home';
-    });
-    _showSnackbar('Booking confirmed successfully!');
-  }
-
   void _handleEndCall() {
     setState(() {
       _currentScreen = 'home';
