@@ -27,6 +27,7 @@ class _LawyerDetailScreenState extends ConsumerState<LawyerDetailScreen>
   late TabController _tabController;
   String? _selectedSlot; // Track selected slot (date_time format)
   DateTime? _selectedDateTime; // Store the actual DateTime
+  final ScrollController _availabilityScrollController = ScrollController();
 
   @override
   void initState() {
@@ -37,6 +38,7 @@ class _LawyerDetailScreenState extends ConsumerState<LawyerDetailScreen>
   @override
   void dispose() {
     _tabController.dispose();
+    _availabilityScrollController.dispose();
     super.dispose();
   }
 
@@ -52,7 +54,7 @@ class _LawyerDetailScreenState extends ConsumerState<LawyerDetailScreen>
           detail.when(
             data: (l) =>
                 l != null ? _buildProfileCard(l) : _buildProfileCard(null),
-            loading: () => SizedBox(
+            loading: () => const SizedBox(
                 height: 220, child: Center(child: CircularProgressIndicator())),
             error: (e, st) => _buildProfileCard(null),
           ),
@@ -66,21 +68,21 @@ class _LawyerDetailScreenState extends ConsumerState<LawyerDetailScreen>
                   loading: () =>
                       const Center(child: CircularProgressIndicator()),
                   error: (e, st) =>
-                      Center(child: Text('Failed to load lawyer')),
+                      const Center(child: Text('Failed to load lawyer')),
                 ),
                 detail.when(
                   data: (l) => _buildReviewsTab(l),
                   loading: () =>
                       const Center(child: CircularProgressIndicator()),
                   error: (e, st) =>
-                      Center(child: Text('Failed to load lawyer')),
+                      const Center(child: Text('Failed to load lawyer')),
                 ),
                 detail.when(
                   data: (l) => _buildAvailabilityTab(l),
                   loading: () =>
                       const Center(child: CircularProgressIndicator()),
                   error: (e, st) =>
-                      Center(child: Text('Failed to load lawyer')),
+                      const Center(child: Text('Failed to load lawyer')),
                 ),
               ],
             ),
@@ -245,10 +247,6 @@ class _LawyerDetailScreenState extends ConsumerState<LawyerDetailScreen>
   Widget _buildTabBar() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        border: Border.all(color: AppTheme.borderColor),
-        borderRadius: BorderRadius.circular(12),
-      ),
       child: TabBar(
         controller: _tabController,
         indicator: BoxDecoration(
@@ -309,14 +307,14 @@ class _LawyerDetailScreenState extends ConsumerState<LawyerDetailScreen>
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
-          ...education.map((e) => _buildListItem(Icons.school, e)).toList(),
+          ...education.map((e) => _buildListItem(Icons.school, e)),
           const SizedBox(height: 24),
           const Text(
             'Achievements',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
-          ...achievements.map((a) => _buildListItem(Icons.star, a)).toList(),
+          ...achievements.map((a) => _buildListItem(Icons.star, a)),
           const SizedBox(height: 100),
         ],
       ),
@@ -421,12 +419,12 @@ class _LawyerDetailScreenState extends ConsumerState<LawyerDetailScreen>
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         } else if (snapshot.hasError) {
-          return Center(
+          return const Center(
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(16),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
+                children: [
                   Icon(Icons.schedule_outlined,
                       size: 48, color: AppTheme.textSecondary),
                   SizedBox(height: 16),
@@ -441,12 +439,12 @@ class _LawyerDetailScreenState extends ConsumerState<LawyerDetailScreen>
           final weekly = data['weekly_schedule'] as List<dynamic>? ?? [];
 
           if (weekly.isEmpty) {
-            return Center(
+            return const Center(
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.all(16),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: const [
+                  children: [
                     Icon(Icons.schedule_outlined,
                         size: 48, color: AppTheme.textSecondary),
                     SizedBox(height: 16),
@@ -486,12 +484,12 @@ class _LawyerDetailScreenState extends ConsumerState<LawyerDetailScreen>
           }
 
           if (dateSlots.isEmpty) {
-            return Center(
+            return const Center(
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.all(16),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: const [
+                  children: [
                     Icon(Icons.schedule_outlined,
                         size: 48, color: AppTheme.textSecondary),
                     SizedBox(height: 16),
@@ -507,13 +505,15 @@ class _LawyerDetailScreenState extends ConsumerState<LawyerDetailScreen>
             children: [
               Expanded(
                 child: ListView.builder(
+                  controller: _availabilityScrollController,
                   padding: const EdgeInsets.all(16),
                   itemCount: dateSlots.length,
                   itemBuilder: (context, index) {
                     final item = dateSlots[index];
                     final date = item['date'] as DateTime;
                     final slots = item['slots'] as List<dynamic>;
-                    final dateStr = '${date.day} ${_getMonthName(date.month)}';
+                    final dateStr =
+                        '${date.day} ${_getMonthName(date.month)} ${date.year}';
 
                     return Card(
                       margin: const EdgeInsets.only(bottom: 12),
@@ -538,7 +538,8 @@ class _LawyerDetailScreenState extends ConsumerState<LawyerDetailScreen>
                                     '${date.toString().split(' ')[0]}_$start';
                                 final isSelected = _selectedSlot == slotId;
                                 return FilterChip(
-                                  label: Text('$start - $end'),
+                                  label: Text(
+                                      '${_formatTimeToAMPM(start)} - ${_formatTimeToAMPM(end)}'),
                                   selected: isSelected,
                                   onSelected: (selected) {
                                     setState(() {
@@ -604,12 +605,12 @@ class _LawyerDetailScreenState extends ConsumerState<LawyerDetailScreen>
           );
         }
 
-        return Center(
+        return const Center(
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(16),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
-              children: const [
+              children: [
                 Icon(Icons.schedule_outlined,
                     size: 48, color: AppTheme.textSecondary),
                 SizedBox(height: 16),
@@ -654,8 +655,25 @@ class _LawyerDetailScreenState extends ConsumerState<LawyerDetailScreen>
     return months[month - 1];
   }
 
+  String _formatTimeToAMPM(String time24) {
+    try {
+      final parts = time24.split(':');
+      if (parts.length != 2) return time24;
+
+      final hour = int.parse(parts[0]);
+      final minute = parts[1];
+
+      final period = hour >= 12 ? 'PM' : 'AM';
+      final hour12 = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+
+      return '$hour12:$minute $period';
+    } catch (e) {
+      return time24;
+    }
+  }
+
   String _getSelectedDateString() {
     if (_selectedDateTime == null) return '';
-    return '${_selectedDateTime!.day} ${_getMonthName(_selectedDateTime!.month)}';
+    return '${_selectedDateTime!.day} ${_getMonthName(_selectedDateTime!.month)} ${_selectedDateTime!.year}';
   }
 }

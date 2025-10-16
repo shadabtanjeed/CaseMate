@@ -39,6 +39,23 @@ class _BookingScreenState extends State<BookingScreen> {
     super.dispose();
   }
 
+  String _formatTimeToAMPM(String time24) {
+    try {
+      final parts = time24.split(':');
+      if (parts.length != 2) return time24;
+
+      final hour = int.parse(parts[0]);
+      final minute = parts[1];
+
+      final period = hour >= 12 ? 'PM' : 'AM';
+      final hour12 = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+
+      return '$hour12:$minute $period';
+    } catch (e) {
+      return time24;
+    }
+  }
+
   bool get _isComplete {
     return _consultationType != null &&
         _caseCategory != null &&
@@ -63,10 +80,6 @@ class _BookingScreenState extends State<BookingScreen> {
             _buildSummaryCard(),
             const SizedBox(height: 24),
 
-            // Consultation Type section
-            _buildConsultationTypeSection(),
-            const SizedBox(height: 24),
-
             // Case Category section
             _buildCaseCategorySection(),
             const SizedBox(height: 24),
@@ -75,8 +88,8 @@ class _BookingScreenState extends State<BookingScreen> {
             _buildCaseDescriptionSection(),
             const SizedBox(height: 32),
 
-            // Proceed to Payment button
-            _buildProceedButton(context),
+            // Book Now button
+            _buildBookNowButton(context),
             const SizedBox(height: 16),
           ],
         ),
@@ -88,6 +101,7 @@ class _BookingScreenState extends State<BookingScreen> {
     final timeSlot = widget.selectedSlot.split('_').length > 1
         ? widget.selectedSlot.split('_')[1]
         : '';
+    final formattedTime = _formatTimeToAMPM(timeSlot);
 
     return Card(
       child: Padding(
@@ -146,7 +160,7 @@ class _BookingScreenState extends State<BookingScreen> {
             _buildSummaryRow(
               Icons.access_time,
               'Time',
-              timeSlot,
+              formattedTime,
             ),
             const SizedBox(height: 8),
             _buildSummaryRow(
@@ -175,88 +189,6 @@ class _BookingScreenState extends State<BookingScreen> {
           style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
         ),
       ],
-    );
-  }
-
-  Widget _buildConsultationTypeSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Consultation Type',
-          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: _buildConsultationOption(
-                'Chat',
-                Icons.chat_bubble_outline,
-                'chat',
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildConsultationOption(
-                'Video Call',
-                Icons.videocam_outlined,
-                'video',
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildConsultationOption(
-                'Voice Call',
-                Icons.call_outlined,
-                'voice',
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildConsultationOption(
-    String label,
-    IconData icon,
-    String value,
-  ) {
-    final isSelected = _consultationType == value;
-
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _consultationType = value;
-        });
-      },
-      child: Card(
-        elevation: isSelected ? 4 : 1,
-        color: isSelected ? AppTheme.primaryBlue : Colors.white,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          child: Column(
-            children: [
-              Icon(
-                icon,
-                size: 32,
-                color: isSelected ? Colors.white : AppTheme.primaryBlue,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                label,
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 12,
-                  color: isSelected ? Colors.white : AppTheme.textPrimary,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 
@@ -343,22 +275,22 @@ class _BookingScreenState extends State<BookingScreen> {
     );
   }
 
-  Widget _buildProceedButton(BuildContext context) {
+  Widget _buildBookNowButton(BuildContext context) {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton.icon(
         onPressed: _isComplete
             ? () {
-                // TODO: Implement payment logic
+                // TODO: Implement booking logic
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Proceeding to payment...'),
+                    content: Text('Booking appointment...'),
                   ),
                 );
               }
             : null,
-        icon: const Icon(Icons.payment),
-        label: const Text('Proceed to Payment'),
+        icon: const Icon(Icons.book_online),
+        label: const Text('Book Now'),
         style: ElevatedButton.styleFrom(
           padding: const EdgeInsets.symmetric(vertical: 16),
           backgroundColor: AppTheme.primaryBlue,

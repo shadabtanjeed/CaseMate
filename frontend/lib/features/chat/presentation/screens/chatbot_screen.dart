@@ -169,8 +169,8 @@ Hello! I'm CaseMateBot, your AI legal assistant. How can I help you today?
                             child: Icon(Icons.smart_toy,
                                 size: 16, color: Colors.white),
                           ),
-                          const SizedBox(width: 8),
-                          const TypingIndicator(),
+                          SizedBox(width: 8),
+                          TypingIndicator(),
                         ],
                       ),
                     ),
@@ -368,7 +368,7 @@ Hello! I'm CaseMateBot, your AI legal assistant. How can I help you today?
                       event.logicalKey == LogicalKeyboardKey.enter) {
                     // if shift is pressed, allow newline
                     if (event.isShiftPressed) {
-                      final newText = _messageController.text + '\n';
+                      final newText = '${_messageController.text}\n';
                       _messageController.text = newText;
                       _messageController.selection = TextSelection.fromPosition(
                           TextPosition(offset: newText.length));
@@ -477,7 +477,7 @@ class _TypingIndicatorState extends State<TypingIndicator>
                   child: Container(
                     width: 8,
                     height: 8,
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       color: AppTheme.primaryBlue,
                       shape: BoxShape.circle,
                     ),
