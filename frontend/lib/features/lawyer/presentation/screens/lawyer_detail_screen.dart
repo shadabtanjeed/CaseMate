@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../providers/lawyer_provider.dart';
+import '../../domain/entities/lawyer_entity.dart';
 
-class LawyerDetailScreen extends StatefulWidget {
-  final int lawyerId;
+class LawyerDetailScreen extends ConsumerStatefulWidget {
+  final String lawyerId;
   final VoidCallback onBack;
   final VoidCallback onBookConsultation;
 
@@ -14,10 +17,10 @@ class LawyerDetailScreen extends StatefulWidget {
   });
 
   @override
-  State<LawyerDetailScreen> createState() => _LawyerDetailScreenState();
+  ConsumerState<LawyerDetailScreen> createState() => _LawyerDetailScreenState();
 }
 
-class _LawyerDetailScreenState extends State<LawyerDetailScreen>
+class _LawyerDetailScreenState extends ConsumerState<LawyerDetailScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
@@ -35,17 +38,28 @@ class _LawyerDetailScreenState extends State<LawyerDetailScreen>
 
   @override
   Widget build(BuildContext context) {
+    final detail = ref.watch(lawyerDetailProvider(widget.lawyerId));
+
     return Scaffold(
       body: Column(
         children: [
           _buildHeader(),
-          _buildProfileCard(),
+          // show profile card based on provider state
+          detail.when(
+            data: (l) => l != null ? _buildProfileCard(l) : _buildProfileCard(null),
+            loading: () => SizedBox(height: 220, child: Center(child: CircularProgressIndicator())),
+            error: (e, st) => _buildProfileCard(null),
+          ),
           _buildTabBar(),
           Expanded(
             child: TabBarView(
               controller: _tabController,
               children: [
-                _buildAboutTab(),
+                detail.when(
+                  data: (l) => _buildAboutTab(l),
+                  loading: () => const Center(child: CircularProgressIndicator()),
+                  error: (e, st) => Center(child: Text('Failed to load lawyer')),
+                ),
                 _buildReviewsTab(),
                 _buildSlotsTab(),
               ],
@@ -81,7 +95,15 @@ class _LawyerDetailScreenState extends State<LawyerDetailScreen>
     );
   }
 
-  Widget _buildProfileCard() {
+  Widget _buildProfileCard([LawyerEntity? lawyer]) {
+    final name = lawyer?.name ?? 'Dr. Sarah Johnson';
+    final specialization = lawyer?.specialization ?? 'Criminal Law';
+    final rating = lawyer?.rating ?? 4.9;
+    final reviews = lawyer?.reviews ?? 124;
+    final experience = lawyer?.experience ?? 12;
+    final location = lawyer?.location ?? 'New York, NY';
+    final feeText = lawyer != null ? '\$${lawyer.fee} per consultation' : '\$150 per consultation';
+
     return Transform.translate(
       offset: const Offset(0, -30),
       child: Padding(
@@ -102,27 +124,27 @@ class _LawyerDetailScreenState extends State<LawyerDetailScreen>
                       ),
                     ),
                     const SizedBox(width: 16),
-                    const Expanded(
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Dr. Sarah Johnson',
-                            style: TextStyle(
+                            name,
+                            style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
                           Text(
-                            'Criminal Law',
-                            style: TextStyle(color: AppTheme.textSecondary),
+                            specialization,
+                            style: const TextStyle(color: AppTheme.textSecondary),
                           ),
-                          SizedBox(height: 8),
+                          const SizedBox(height: 8),
                           Row(
                             children: [
-                              Icon(Icons.star, size: 16, color: Colors.amber),
-                              SizedBox(width: 4),
-                              Text('4.9 (124 reviews)'),
+                              const Icon(Icons.star, size: 16, color: Colors.amber),
+                              const SizedBox(width: 4),
+                              Text('$rating ($reviews reviews)'),
                             ],
                           ),
                         ],
@@ -163,19 +185,19 @@ class _LawyerDetailScreenState extends State<LawyerDetailScreen>
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _buildStatItem(Icons.work_outline, '12 years exp.'),
-                    _buildStatItem(Icons.location_on, 'New York, NY'),
+                    _buildStatItem(Icons.work_outline, '$experience years exp.'),
+                    _buildStatItem(Icons.location_on, location),
                   ],
                 ),
                 const SizedBox(height: 8),
-                const Row(
+                Row(
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.attach_money,
                       size: 20,
                       color: AppTheme.textSecondary,
                     ),
-                    Text('\$150 per consultation'),
+                    Text(feeText),
                   ],
                 ),
               ],
@@ -220,7 +242,11 @@ class _LawyerDetailScreenState extends State<LawyerDetailScreen>
     );
   }
 
-  Widget _buildAboutTab() {
+  Widget _buildAboutTab([LawyerEntity? lawyer]) {
+    final bio = lawyer?.bio ?? 'Biography not available.';
+    final education = lawyer?.education ?? [];
+    final achievements = lawyer?.achievements ?? [];
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -231,9 +257,9 @@ class _LawyerDetailScreenState extends State<LawyerDetailScreen>
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
-          const Text(
-            'Dr. Sarah Johnson is an experienced criminal defense attorney with over 12 years of practice. She has successfully defended clients in numerous high-profile cases.',
-            style: TextStyle(color: AppTheme.textSecondary),
+          Text(
+            bio,
+            style: const TextStyle(color: AppTheme.textSecondary),
           ),
           const SizedBox(height: 24),
           const Text(
@@ -241,22 +267,14 @@ class _LawyerDetailScreenState extends State<LawyerDetailScreen>
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
-          _buildListItem(Icons.school, 'J.D., Harvard Law School'),
-          _buildListItem(
-            Icons.school,
-            'B.A. Political Science, Yale University',
-          ),
+          ...education.map((e) => _buildListItem(Icons.school, e)).toList(),
           const SizedBox(height: 24),
           const Text(
             'Achievements',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
-          _buildListItem(Icons.star, 'Super Lawyers Rising Star 2020-2023'),
-          _buildListItem(
-            Icons.star,
-            'Top 40 Under 40 Criminal Defense Attorneys',
-          ),
+          ...achievements.map((a) => _buildListItem(Icons.star, a)).toList(),
           const SizedBox(height: 100),
         ],
       ),

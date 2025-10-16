@@ -3,14 +3,33 @@ from fastapi.responses import JSONResponse
 import logging
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
+import asyncio
 from .database import connect_to_mongo, close_mongo_connection
-from .routes import auth, chatbot_routes, schedule_routes
+from .routes import auth, chatbot_routes, lawyers
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    await connect_to_mongo()
+    # Try connecting to Mongo with a few retries and short backoff to handle
+    # transient startup races (e.g., Docker container starting slightly later).
+    retries = 3
+    delay = 1
+    last_exc = None
+    for attempt in range(1, retries + 1):
+        try:
+            await connect_to_mongo()
+            last_exc = None
+            break
+        except Exception as e:
+            last_exc = e
+            logging.warning("MongoDB connection attempt %s failed: %s", attempt, e)
+            if attempt < retries:
+                await asyncio.sleep(delay)
+                delay *= 2
+    if last_exc:
+        # Let startup fail with the last exception so it's visible to the user
+        raise last_exc
     yield
     # Shutdown
     await close_mongo_connection()
@@ -55,6 +74,7 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/api")
 app.include_router(chatbot_routes.router, prefix="/api")
 app.include_router(schedule_routes.router, prefix="/api")
+app.include_router(lawyers.router, prefix="/api")
 
 
 @app.get("/")

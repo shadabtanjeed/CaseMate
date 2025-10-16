@@ -56,3 +56,24 @@ async def delete_many(collection: str, filter: Dict) -> Any:
     except Exception as e:
         logging.exception('Error in delete_many')
         raise
+
+
+async def find_many(collection: str, filter: Dict, skip: int = 0, limit: int = 20, sort: Optional[list] = None) -> Any:
+    """Find multiple documents with optional pagination and sorting."""
+    db = get_database()
+    coll = db[collection]
+    try:
+        def _query():
+            cursor = coll.find(filter)
+            if sort:
+                cursor = cursor.sort(sort)
+            if skip:
+                cursor = cursor.skip(skip)
+            if limit:
+                cursor = cursor.limit(limit)
+            return list(cursor)
+
+        return await asyncio.to_thread(_query)
+    except Exception as e:
+        logging.exception('Error in find_many')
+        raise

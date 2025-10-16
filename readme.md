@@ -73,7 +73,8 @@ sudo apt install -y python3.11 python3.11-venv python3.11-dev build-essential li
 ```bash
 cd /home/shadab/github_repos/CaseMate/backend
 python3.11 -m venv casemate_venv
-source casemate_venv/bin/activate
+source casemate_venv/bin/activate  # For Linux/macOS
+casemate_venv\Scripts\activate.ps1 # For Windows
 ```
 
 ### Install dependencies
@@ -83,6 +84,8 @@ With the venv activated:
 ```bash
 pip install -r requirements.txt
 ```
+
+Note: Some of the dependencies are Linux-specific. If you're on Windows, you may need to adjust or skip some packages.
 
 ### Run the backend
 
@@ -121,12 +124,31 @@ Select the target device/emulator as usual with Flutter.
 
 ## Environment / Configuration
 
-Create a .env file in the `backend`.
+- Create a .env file in the `backend`
 
 ```
 MONGODB_URL=your_mongodb_connection_string
 DATABASE_NAME=your_database_name
-SECRET_KEY=your_secret_key
+SECRET_KEY=your-secret-key-change-this-in-production-min-32-chars
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+REFRESH_TOKEN_EXPIRE_DAYS=7
+
+# Email configuration (for future use)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+EMAIL_SENDER=your_gmail@gmail.com
+EMAIL_PASSWORD=your_email_password
+EMAIL_SENDER_NAME=Legal Platform
+cluster0.q5eodz6.mongodb.net
+
+groq_api_key=your_groq_api_key
+```
+
+- Similarly, create a `.env` file in the `frontend`.
+
+```
+SERVER_URL=http://10.0.2.2:8000  # Adjust based on your backend server address
 ```
 
 ## Contributing
