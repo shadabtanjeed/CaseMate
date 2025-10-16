@@ -8,14 +8,22 @@ router = APIRouter()
 
 @router.get("/lawyers")
 async def list_lawyers(
-    q: Optional[str] = Query(None, description="Search query for name or specialization"),
-    specialization: Optional[str] = Query(None, description="Exact specialization filter"),
+    q: Optional[str] = Query(
+        None, description="Search query for name or specialization"
+    ),
+    specialization: Optional[str] = Query(
+        None, description="Exact specialization filter"
+    ),
     min_rating: Optional[float] = Query(None, description="Minimum rating"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
 ):
     lawyers = await lawyer_service.search_lawyers(
-        q=q, specialization=specialization, min_rating=min_rating, page=page, page_size=page_size
+        q=q,
+        specialization=specialization,
+        min_rating=min_rating,
+        page=page,
+        page_size=page_size,
     )
     # Convert to response models
     result = []
@@ -33,10 +41,19 @@ async def list_lawyers(
                 "image": None,
                 "verified": l.is_verified,
                 "bio": l.bio or "",
-                "education": l.education.split(',') if isinstance(l.education, str) and l.education else (l.education or []),
-                "achievements": l.achievements.split(',') if isinstance(l.achievements, str) and l.achievements else (l.achievements or []),
+                "education": (
+                    l.education.split(",")
+                    if isinstance(l.education, str) and l.education
+                    else (l.education or [])
+                ),
+                "achievements": (
+                    l.achievements.split(",")
+                    if isinstance(l.achievements, str) and l.achievements
+                    else (l.achievements or [])
+                ),
                 "languages": [],
                 "barAdmissions": [],
+                "email": l.email or "",
             }
         )
 
@@ -67,10 +84,19 @@ async def get_lawyer(lawyer_id: str):
         "image": None,
         "verified": l.is_verified,
         "bio": l.bio or "",
-        "education": l.education.split(',') if isinstance(l.education, str) and l.education else (l.education or []),
-        "achievements": l.achievements.split(',') if isinstance(l.achievements, str) and l.achievements else (l.achievements or []),
+        "education": (
+            l.education.split(",")
+            if isinstance(l.education, str) and l.education
+            else (l.education or [])
+        ),
+        "achievements": (
+            l.achievements.split(",")
+            if isinstance(l.achievements, str) and l.achievements
+            else (l.achievements or [])
+        ),
         "languages": [],
         "barAdmissions": [],
+        "email": l.email or "",
     }
 
     return {"data": result}

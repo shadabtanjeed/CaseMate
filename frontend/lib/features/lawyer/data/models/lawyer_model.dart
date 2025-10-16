@@ -2,22 +2,40 @@ import '../../domain/entities/lawyer_entity.dart';
 
 class LawyerModel extends LawyerEntity {
   LawyerModel({
-    required super.id,
-    required super.name,
-    required super.specialization,
-    required super.rating,
-    required super.reviews,
-    required super.experience,
-    required super.location,
-    required super.fee,
-    required super.image,
-    super.verified,
-    required super.bio,
-    super.education,
-    super.achievements,
-    super.languages,
-    super.barAdmissions,
-  });
+    required String id,
+    required String name,
+    required String specialization,
+    String? email,
+    required double rating,
+    required int reviews,
+    required int experience,
+    required String location,
+    required int fee,
+    required String image,
+    bool verified = false,
+    required String bio,
+    List<String> education = const [],
+    List<String> achievements = const [],
+    List<String> languages = const [],
+    List<String> barAdmissions = const [],
+  }) : super(
+          id: id,
+          name: name,
+          specialization: specialization,
+          email: email,
+          rating: rating,
+          reviews: reviews,
+          experience: experience,
+          location: location,
+          fee: fee,
+          image: image,
+          verified: verified,
+          bio: bio,
+          education: education,
+          achievements: achievements,
+          languages: languages,
+          barAdmissions: barAdmissions,
+        );
 
   factory LawyerModel.fromJson(Map<String, dynamic> json) {
     String parseId(dynamic raw) {
@@ -34,14 +52,21 @@ class LawyerModel extends LawyerEntity {
     }
 
     return LawyerModel(
-  id: parseId(json['id']),
+      id: parseId(json['id']),
       name: json['name'] ?? '',
       specialization: json['specialization'] ?? '',
+      email: json['email'],
       rating: parseRating(json['rating']),
-      reviews: (json['reviews'] is int) ? json['reviews'] as int : (int.tryParse(json['reviews']?.toString() ?? '') ?? 0),
-      experience: (json['experience'] is int) ? json['experience'] as int : (int.tryParse(json['experience']?.toString() ?? '') ?? 0),
+      reviews: (json['reviews'] is int)
+          ? json['reviews'] as int
+          : (int.tryParse(json['reviews']?.toString() ?? '') ?? 0),
+      experience: (json['experience'] is int)
+          ? json['experience'] as int
+          : (int.tryParse(json['experience']?.toString() ?? '') ?? 0),
       location: json['location'] ?? '',
-      fee: (json['fee'] is int) ? json['fee'] as int : (int.tryParse(json['fee']?.toString() ?? '') ?? 0),
+      fee: (json['fee'] is int)
+          ? json['fee'] as int
+          : (int.tryParse(json['fee']?.toString() ?? '') ?? 0),
       image: json['image'] ?? '',
       verified: json['verified'] ?? false,
       bio: json['bio'] ?? '',
@@ -69,6 +94,7 @@ class LawyerModel extends LawyerEntity {
       'achievements': achievements,
       'languages': languages,
       'barAdmissions': barAdmissions,
+      'email': email,
     };
   }
 }
