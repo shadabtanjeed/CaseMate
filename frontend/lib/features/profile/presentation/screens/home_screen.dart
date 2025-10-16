@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_theme.dart';
 
-class HomeScreen extends StatelessWidget {
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../lawyer/presentation/providers/lawyer_provider.dart';
+
+class HomeScreen extends ConsumerWidget {
   final VoidCallback onNavigateToChatbot;
-  final VoidCallback onNavigateToLawyers;
+  final Function(String?) onNavigateToLawyers; // optional specialization
   final VoidCallback onNavigateToProfile;
   final VoidCallback onNavigateToNotifications;
 
@@ -16,22 +20,23 @@ class HomeScreen extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+
     return Scaffold(
       backgroundColor: AppTheme.background,
       body: SafeArea(
         child: Column(
           children: [
-            _buildHeader(context),
+            _buildHeader(context, ref),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildLegalBotCard(context),
+                    _buildLegalBotCard(context, ref),
                     const SizedBox(height: 24),
-                    _buildCategoriesSection(context),
+                    _buildCategoriesSection(context, ref),
                     const SizedBox(height: 24),
                     _buildUpcomingConsultations(context),
                     const SizedBox(height: 80),
@@ -46,7 +51,9 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authProvider);
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: const BoxDecoration(
@@ -79,13 +86,11 @@ class HomeScreen extends StatelessWidget {
                   children: [
                     Text(
                       'Hello,',
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodyMedium?.copyWith(color: Colors.white70),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white70),
                     ),
-                    const Text(
-                      'John Doe',
-                      style: TextStyle(
+                    Text(
+                      authState.user?.fullName ?? 'User',
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
@@ -119,7 +124,6 @@ class HomeScreen extends StatelessWidget {
                       child: const Text(
                         '3',
                         style: TextStyle(color: Colors.white, fontSize: 10),
-                        textAlign: TextAlign.center,
                       ),
                     ),
                   ),
@@ -129,77 +133,28 @@ class HomeScreen extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           TextField(
-            onTap: onNavigateToLawyers,
-            readOnly: true,
+            // search input
             decoration: InputDecoration(
-              hintText: 'Describe your issue or find a lawyer...',
               prefixIcon: const Icon(Icons.search),
               filled: true,
               fillColor: Colors.white,
+              hintText: 'Search lawyers or specializations',
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide.none,
               ),
             ),
+            style: const TextStyle(
+              color: AppTheme.textPrimary,
+            ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLegalBotCard(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppTheme.accentBlue, AppTheme.primaryBlue],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  Icons.chat_bubble_outline,
-                  color: Colors.white,
-                  size: 32,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Chat with LegalBot',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Get instant answers to your legal questions',
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.9),
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+          const SizedBox(height: 4),
+          Text(
+            'Get instant answers to your legal questions',
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.9),
+              fontSize: 14,
+            ),
           ),
           const SizedBox(height: 16),
           SizedBox(
@@ -218,93 +173,101 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildCategoriesSection(BuildContext context) {
-    final categories = [
-      {
-        'icon': Icons.security,
-        'label': 'Criminal',
-        'color': AppTheme.primaryBlue,
-      },
-      {'icon': Icons.balance, 'label': 'Civil', 'color': AppTheme.accentBlue},
-      {'icon': Icons.people, 'label': 'Family', 'color': AppTheme.primaryBlue},
-      {'icon': Icons.home, 'label': 'Property', 'color': AppTheme.accentBlue},
-      {
-        'icon': Icons.business,
-        'label': 'Corporate',
-        'color': AppTheme.primaryBlue,
-      },
-      {
-        'icon': Icons.account_balance,
-        'label': 'Tax',
-        'color': AppTheme.accentBlue,
-      },
-    ];
+  Widget _buildCategoriesSection(BuildContext context, WidgetRef ref) {
+    final specAsync = ref.watch(lawyerSpecializationsProvider);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Find Lawyers by Category',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            TextButton(
-              onPressed: onNavigateToLawyers,
-              child: const Text('View All'),
-            ),
-          ],
+        Text(
+          'Find Lawyers by Category',
+          style: Theme.of(context).textTheme.titleLarge,
         ),
         const SizedBox(height: 16),
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 0.9,
-          ),
-          itemCount: categories.length,
-          itemBuilder: (context, index) {
-            final category = categories[index];
-            return InkWell(
-              onTap: onNavigateToLawyers,
-              borderRadius: BorderRadius.circular(16),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppTheme.borderColor),
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: (category['color'] as Color).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(
-                        category['icon'] as IconData,
-                        color: category['color'] as Color,
-                        size: 24,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      category['label'] as String,
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                  ],
-                ),
+        specAsync.when(
+          data: (specs) {
+            if (specs.isEmpty) return const Center(child: Text('No categories'));
+            return GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                childAspectRatio: 0.9,
               ),
+              itemCount: specs.length,
+              itemBuilder: (context, index) {
+                final label = specs[index];
+                return InkWell(
+                  onTap: () => onNavigateToLawyers(label),
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppTheme.borderColor),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryBlue.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(
+                            Icons.business,
+                            color: AppTheme.primaryBlue,
+                            size: 24,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(label, style: Theme.of(context).textTheme.bodyMedium),
+                      ],
+                    ),
+                  ),
+                );
+              },
             );
           },
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, st) => Center(child: Text('Failed to load categories')),
         ),
       ],
+    );
+  }
+
+  Widget _buildLegalBotCard(BuildContext context, WidgetRef ref) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.borderColor),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'LegalBot',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 8),
+                const Text('Get instant legal answers powered by our assistant.'),
+              ],
+            ),
+          ),
+          ElevatedButton(
+            onPressed: onNavigateToChatbot,
+            child: const Text('Chat'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -450,7 +413,7 @@ class HomeScreen extends StatelessWidget {
                 Icons.balance,
                 'Lawyers',
                 false,
-                onNavigateToLawyers,
+                () => onNavigateToLawyers(null),
               ),
               _buildFloatingChatButton(),
               _buildNavItem(Icons.calendar_today, 'Sessions', false, () {}),

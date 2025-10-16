@@ -26,9 +26,17 @@ class LawyerListNotifier extends StateNotifier<LawyerListState> {
   LawyerListNotifier(this.repository) : super(LawyerListState());
 
   Future<void> search({String? q, String? specialization, double? minRating}) async {
+    // normalize inputs
+    final normalizedQ = q?.trim().isEmpty ?? true ? null : q?.trim();
+    final normalizedSpec = specialization?.trim().isEmpty ?? true ? null : specialization?.trim();
+
+    // Debug: print search parameters
+    // ignore: avoid_print
+    print('LawyerListNotifier.search called with q=$normalizedQ specialization=$normalizedSpec minRating=$minRating');
+
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final res = await repository.searchLawyers(q: q, specialization: specialization, minRating: minRating);
+      final res = await repository.searchLawyers(q: normalizedQ, specialization: normalizedSpec, minRating: minRating);
       state = state.copyWith(lawyers: res, isLoading: false);
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
@@ -47,4 +55,12 @@ final lawyerListNotifierProvider = StateNotifierProvider<LawyerListNotifier, Law
 final lawyerDetailProvider = FutureProvider.family<LawyerEntity?, String>((ref, id) async {
   final repo = ref.watch(lawyerRepositoryProvider);
   return await repo.getLawyerById(id);
+});
+
+final lawyerSpecializationsProvider = FutureProvider<List<String>>((ref) async {
+  final api = ref.watch(apiClientProvider);
+  final ds = LawyerRemoteDataSource(apiClient: api);
+  final response = await ds.apiClient.get('/lawyers/specializations');
+  final raw = response['data'] as List<dynamic>? ?? [];
+  return raw.map((e) => e.toString()).toList();
 });

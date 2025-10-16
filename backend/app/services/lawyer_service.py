@@ -4,6 +4,8 @@ from bson import ObjectId
 from ..db_async import find_many, find_one
 from ..models.user import UserInDB
 import logging
+from ..database import get_database
+import asyncio
 
 
 class LawyerService:
@@ -68,6 +70,21 @@ class LawyerService:
             return UserInDB(**doc)
         except Exception:
             logging.exception("Error fetching lawyer by id %s", lawyer_id)
+            raise
+
+    async def get_unique_specializations(self) -> List[str]:
+        try:
+            db = get_database()
+
+            def _distinct():
+                # Use MongoDB distinct to get unique specializations for role=lawyer
+                return list(db['lawyers'].distinct('specialization', {'role': 'lawyer'}))
+
+            specs = await asyncio.to_thread(_distinct)
+            # Filter out falsy and trim
+            return [s.strip() for s in specs if s]
+        except Exception:
+            logging.exception('Error fetching unique specializations')
             raise
 
 
