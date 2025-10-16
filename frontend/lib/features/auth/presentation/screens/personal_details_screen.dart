@@ -10,6 +10,7 @@ class PersonalDetailsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authProvider);
     final user = authState.user;
+    final isLawyer = user?.role == 'lawyer'; // Check if user is a lawyer
 
     return Scaffold(
       appBar: AppBar(
@@ -36,38 +37,62 @@ class PersonalDetailsScreen extends ConsumerWidget {
               label: 'Email',
               value: user?.email ?? '—',
             ),
-            const SizedBox(height: 16),
-            _sectionTitle(context, 'Lawyer Details'),
-            const SizedBox(height: 8),
-            _infoTile(
-              context,
-              icon: Icons.credit_card_outlined,
-              label: 'License ID',
-              value: (user?.licenseId?.trim().isNotEmpty ?? false)
-                  ? user!.licenseId!
-                  : '—',
-            ),
-            _infoTile(
-              context,
-              icon: Icons.work_outline,
-              label: 'Specialization',
-              value: (user?.specialization?.trim().isNotEmpty ?? false)
-                  ? user!.specialization!
-                  : '—',
-            ),
-            _infoTile(
-              context,
-              icon: Icons.trending_up_outlined,
-              label: 'Years of Experience',
-              value: user?.yearsOfExperience?.toString() ?? '—',
-            ),
-            _infoTile(
-              context,
-              icon: Icons.notes_outlined,
-              label: 'Bio',
-              value: (user?.bio?.trim().isNotEmpty ?? false) ? user!.bio! : '—',
-              multiline: true,
-            ),
+            
+            // Show lawyer details only if user is a lawyer
+            if (isLawyer) ...[
+              const SizedBox(height: 16),
+              _sectionTitle(context, 'Lawyer Details'),
+              const SizedBox(height: 8),
+              _infoTile(
+                context,
+                icon: Icons.credit_card_outlined,
+                label: 'License ID',
+                value: (user?.licenseId?.trim().isNotEmpty ?? false)
+                    ? user!.licenseId!
+                    : '—',
+              ),
+              _infoTile(
+                context,
+                icon: Icons.work_outline,
+                label: 'Specialization',
+                value: (user?.specialization?.trim().isNotEmpty ?? false)
+                    ? user!.specialization!
+                    : '—',
+              ),
+              _infoTile(
+                context,
+                icon: Icons.trending_up_outlined,
+                label: 'Years of Experience',
+                value: user?.yearsOfExperience?.toString() ?? '—',
+              ),
+              _infoTile(
+                context,
+                icon: Icons.notes_outlined,
+                label: 'Bio',
+                value: (user?.bio?.trim().isNotEmpty ?? false) ? user!.bio! : '—',
+                multiline: true,
+              ),
+            ],
+            
+            // Show user details only if user is NOT a lawyer
+            if (!isLawyer) ...[
+              const SizedBox(height: 16),
+              _sectionTitle(context, 'User Details'),
+              const SizedBox(height: 8),
+              _infoTile(
+                context,
+                icon: Icons.phone_outlined,
+                label: 'Phone Number',
+                value: user?.phone ?? '—',
+              ),
+              _infoTile(
+                context,
+                icon: Icons.location_on_outlined,
+                label: 'Location',
+                value: user?.location ?? '—',
+              ),
+            ],
+            
             const SizedBox(height: 24),
             _tipBox(context),
           ],
