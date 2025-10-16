@@ -24,6 +24,7 @@ class LawyerDetailScreen extends ConsumerStatefulWidget {
 class _LawyerDetailScreenState extends ConsumerState<LawyerDetailScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  String? _selectedSlot; // Track selected slot
 
   @override
   void initState() {
@@ -84,7 +85,6 @@ class _LawyerDetailScreenState extends ConsumerState<LawyerDetailScreen>
           ),
         ],
       ),
-      bottomNavigationBar: _buildBottomBar(),
     );
   }
 
@@ -456,51 +456,143 @@ class _LawyerDetailScreenState extends ConsumerState<LawyerDetailScreen>
             );
           }
 
-          final dayWidgets = <Widget>[];
+          // Build a map of weekday -> slots for easier lookup
+          final weekdaySlots = <String, List<dynamic>>{};
           for (final d in weekly) {
             final weekday = d['weekday'] ?? '';
-            final slots = (d['slots'] as List<dynamic>?) ?? [];
-            if (slots.isEmpty) continue;
+            final slots = (d['slots'] as List<dynamic>? ?? []);
+            if (slots.isNotEmpty) {
+              weekdaySlots[weekday] = slots;
+            }
+          }
 
-            final slotChips = slots.map((s) {
-              final start = s['start'] ?? '';
-              final end = s['end'] ?? '';
-              return Padding(
-                padding: const EdgeInsets.only(right: 6, bottom: 6),
-                child: Chip(
-                  label: Text('$start - $end'),
-                  backgroundColor: AppTheme.primaryBlue.withOpacity(0.1),
-                  labelStyle: const TextStyle(color: AppTheme.primaryBlue),
-                  side: const BorderSide(color: AppTheme.primaryBlue),
-                ),
-              );
-            }).toList();
+          // Generate dates for next 4 weeks
+          final today = DateTime.now();
+          final dateSlots = <Map<String, dynamic>>[];
 
-            dayWidgets.add(Card(
-              margin: const EdgeInsets.only(bottom: 12),
+          for (int i = 0; i < 28; i++) {
+            final date = today.add(Duration(days: i));
+            final weekdayName = _getWeekdayName(date.weekday);
+
+            if (weekdaySlots.containsKey(weekdayName)) {
+              dateSlots.add({
+                'date': date,
+                'weekday': weekdayName,
+                'slots': weekdaySlots[weekdayName],
+              });
+            }
+          }
+
+          if (dateSlots.isEmpty) {
+            return Center(
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      weekday,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w600, fontSize: 16),
-                    ),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      children: slotChips,
-                    ),
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: const [
+                    Icon(Icons.schedule_outlined,
+                        size: 48, color: AppTheme.textSecondary),
+                    SizedBox(height: 16),
+                    Text('No available dates in the next 4 weeks',
+                        style: TextStyle(color: AppTheme.textSecondary)),
                   ],
                 ),
               ),
-            ));
+            );
           }
 
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: dayWidgets,
+          return Column(
+            children: [
+              Expanded(
+                child: ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: dateSlots.length,
+                  itemBuilder: (context, index) {
+                    final item = dateSlots[index];
+                    final date = item['date'] as DateTime;
+                    final slots = item['slots'] as List<dynamic>;
+                    final dateStr = '${date.day} ${_getMonthName(date.month)}';
+
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              dateStr,
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w600, fontSize: 16),
+                            ),
+                            const SizedBox(height: 12),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: slots.map((slot) {
+                                final start = slot['start'] ?? '';
+                                final end = slot['end'] ?? '';
+                                final slotId =
+                                    '${date.toString().split(' ')[0]}_$start';
+                                final isSelected = _selectedSlot == slotId;
+                                return FilterChip(
+                                  label: Text('$start - $end'),
+                                  selected: isSelected,
+                                  onSelected: (selected) {
+                                    setState(() {
+                                      _selectedSlot = selected ? slotId : null;
+                                    });
+                                  },
+                                  backgroundColor:
+                                      AppTheme.primaryBlue.withOpacity(0.1),
+                                  selectedColor: AppTheme.primaryBlue,
+                                  labelStyle: TextStyle(
+                                    color: isSelected
+                                        ? Colors.white
+                                        : AppTheme.primaryBlue,
+                                  ),
+                                  side: BorderSide(
+                                    color: isSelected
+                                        ? AppTheme.primaryBlue
+                                        : AppTheme.borderColor,
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  border: Border(top: BorderSide(color: AppTheme.borderColor)),
+                ),
+                child: SafeArea(
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: _selectedSlot != null
+                          ? () {
+                              // TODO: Implement booking logic
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Selected: $_selectedSlot'),
+                                ),
+                              );
+                            }
+                          : null,
+                      icon: const Icon(Icons.check_circle),
+                      label: const Text('Book Appointment'),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           );
         }
 
@@ -523,34 +615,34 @@ class _LawyerDetailScreenState extends ConsumerState<LawyerDetailScreen>
     );
   }
 
-  Widget _buildBottomBar() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: AppTheme.borderColor)),
-      ),
-      child: SafeArea(
-        child: Row(
-          children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: () {},
-                icon: const Icon(Icons.chat_bubble_outline),
-                label: const Text('Chat Now'),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: ElevatedButton.icon(
-                onPressed: widget.onBookConsultation,
-                icon: const Icon(Icons.videocam),
-                label: const Text('Book'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+  String _getWeekdayName(int weekday) {
+    const weekdays = [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday',
+    ];
+    return weekdays[weekday - 1];
+  }
+
+  String _getMonthName(int month) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return months[month - 1];
   }
 }
