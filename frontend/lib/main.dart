@@ -58,7 +58,7 @@ class AppNavigator extends StatefulWidget {
 
 class _AppNavigatorState extends State<AppNavigator> {
   String _currentScreen = 'splash';
-  int _selectedLawyerId = 1;
+  String _selectedLawyerId = '';
 
   void _navigateTo(String screen) {
     setState(() {
@@ -91,7 +91,7 @@ class _AppNavigatorState extends State<AppNavigator> {
     _showSnackbar('Logged out successfully');
   }
 
-  void _handleSelectLawyer(int lawyerId) {
+  void _handleSelectLawyer(String lawyerId) {
     setState(() {
       _selectedLawyerId = lawyerId;
       _currentScreen = 'lawyer-detail';
@@ -116,8 +116,7 @@ class _AppNavigatorState extends State<AppNavigator> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        behavior: SnackBarBehavior.fixed,
         backgroundColor: AppTheme.primaryBlue,
       ),
     );

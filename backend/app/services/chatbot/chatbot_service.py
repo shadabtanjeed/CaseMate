@@ -174,6 +174,7 @@ def build_sources_block(hits: List[Dict], max_chars: int = 2000) -> str:
 def ask_groq(question: str, sources: str, model: str = GROQ_MODEL):
     system = (
         "You are an assistant that MUST answer questions using ONLY the provided SOURCES. "
+        "If the answer is not explicit, but can be deduced using legal reasoning based on the principles in the sources, then do so. But mention that you are using reasoning. "
         "Do NOT hallucinate or invent facts. If the answer is not contained in the sources, reply exactly: I do not know.\n"
         "When you provide facts, cite the source label(s) you used in brackets e.g. [SOURCE 1]. Start source labels at [SOURCE 1]. "
         "Include source metadata (law title, section name, section id, passing date) when referencing a source."
@@ -182,6 +183,7 @@ def ask_groq(question: str, sources: str, model: str = GROQ_MODEL):
         f"QUESTION:\n{question}\n\nSOURCES:\n{sources}\n\n"
         "INSTRUCTIONS:\nAnswer the question ONLY using the information in the SOURCES. Provide a concise answer. Cite sources after the answer in list format."
         "If sources disagree, summarize the disagreement and cite the conflicting sources."
+        "Provide the response in markdown format."
     )
     # guard if Groq client not configured
     if client is None:

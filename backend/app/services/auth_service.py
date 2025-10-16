@@ -29,8 +29,10 @@ class AuthService:
     _ph = PasswordHasher()
     @staticmethod
     async def register_user(user_data: UserRegister) -> UserInDB:
-        # Check if user exists
+        # Check if email already exists in either collection
         existing_user = await find_one("users", {"email": user_data.email})
+        if not existing_user:
+            existing_user = await find_one("lawyers", {"email": user_data.email})
         if existing_user:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -56,6 +58,10 @@ class AuthService:
             "is_approved": True,
             "created_at": datetime.utcnow(),
             "updated_at": datetime.utcnow(),
+            "phone": user_data.phone,  # Save phone number
+            "location": user_data.location,  # Save location
+            "education": getattr(user_data, 'education', None),
+            "achievements": getattr(user_data, 'achievements', None),
         }
 
         # Add lawyer-specific fields
@@ -72,7 +78,8 @@ class AuthService:
             )
 
         try:
-            result = await insert_one("users", user_dict)
+            collection_name = "lawyers" if user_data.role == "lawyer" else "users"
+            result = await insert_one(collection_name, user_dict)
             # convert ObjectId to string for Pydantic model
             try:
                 user_dict["_id"] = str(result.inserted_id)
@@ -94,7 +101,10 @@ class AuthService:
 
     @staticmethod
     async def authenticate_user(email: str, password: str) -> Optional[UserInDB]:
+        # Search both collections (users and lawyers)
         user = await find_one("users", {"email": email})
+        if not user:
+            user = await find_one("lawyers", {"email": email})
 
         if not user:
             return None
@@ -122,6 +132,8 @@ class AuthService:
             )
 
         user = await find_one("users", {"_id": ObjectId(user_id)})
+        if not user:
+            user = await find_one("lawyers", {"_id": ObjectId(user_id)})
 
         if not user or not user.get("is_active"):
             raise HTTPException(
@@ -135,7 +147,12 @@ class AuthService:
 
     @staticmethod
     async def change_password(user_id: str, old_password: str, new_password: str) -> bool:
+        # Find user in either collection
         user = await find_one("users", {"_id": ObjectId(user_id)})
+        collection = "users"
+        if not user:
+            user = await find_one("lawyers", {"_id": ObjectId(user_id)})
+            collection = "lawyers"
 
         if not user:
             raise HTTPException(
@@ -149,7 +166,7 @@ class AuthService:
 
         hashed_password = AuthService._ph.hash(new_password)
         await update_one(
-            "users",
+            collection,
             {"_id": user["_id"]},
             {"$set": {"hashed_password": hashed_password, "updated_at": datetime.utcnow()}},
         )
@@ -164,7 +181,10 @@ class AuthService:
     @staticmethod
     async def request_password_reset(email: str) -> bool:
         """Request password reset and send verification code via email"""
+        # Search both collections
         user = await find_one("users", {"email": email})
+        if not user:
+            user = await find_one("lawyers", {"email": email})
 
         if not user:
             # Don't reveal if email exists or not for security
@@ -220,8 +240,12 @@ class AuthService:
                 detail="Invalid or expired verification code"
             )
 
-        # Find user
+        # Find user in either collection
         user = await find_one("users", {"email": email})
+        collection = "users"
+        if not user:
+            user = await find_one("lawyers", {"email": email})
+            collection = "lawyers"
 
         if not user:
             raise HTTPException(
@@ -232,7 +256,7 @@ class AuthService:
         # Update password
         hashed_password = AuthService._ph.hash(new_password)
         await update_one(
-            "users",
+            collection,
             {"_id": user["_id"]},
             {
                 "$set": {

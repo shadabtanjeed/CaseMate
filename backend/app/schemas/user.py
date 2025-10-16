@@ -14,6 +14,14 @@ class UserRegister(UserBase):
     password: str = Field(..., min_length=6)
     role: str = Field(..., pattern="^(user|lawyer)$")
 
+    # User-specific fields
+    phone: Optional[str] = None
+    location: Optional[str] = None
+
+    # Lawyer-specific extra fields
+    education: Optional[str] = None
+    achievements: Optional[str] = None
+
     # Lawyer-specific fields
     license_id: Optional[str] = None
     specialization: Optional[str] = None
@@ -34,11 +42,17 @@ class UserResponse(UserBase):
     is_approved: bool
     created_at: datetime
 
+    # User-specific fields
+    phone: Optional[str] = None
+    location: Optional[str] = None
+
     # Lawyer-specific fields
     license_id: Optional[str] = None
     specialization: Optional[str] = None
     years_of_experience: Optional[int] = None
     bio: Optional[str] = None
+    education: Optional[str] = None
+    achievements: Optional[str] = None
     rating: Optional[float] = None
     total_cases: Optional[int] = None
 
