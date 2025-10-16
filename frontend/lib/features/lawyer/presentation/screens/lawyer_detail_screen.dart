@@ -4,6 +4,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../providers/lawyer_provider.dart';
 import '../../domain/entities/lawyer_entity.dart';
 import '../../../lawyer/data/schedule_service.dart';
+import 'booking_screen.dart';
 
 class LawyerDetailScreen extends ConsumerStatefulWidget {
   final String lawyerId;
@@ -24,7 +25,8 @@ class LawyerDetailScreen extends ConsumerStatefulWidget {
 class _LawyerDetailScreenState extends ConsumerState<LawyerDetailScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  String? _selectedSlot; // Track selected slot
+  String? _selectedSlot; // Track selected slot (date_time format)
+  DateTime? _selectedDateTime; // Store the actual DateTime
 
   @override
   void initState() {
@@ -541,6 +543,8 @@ class _LawyerDetailScreenState extends ConsumerState<LawyerDetailScreen>
                                   onSelected: (selected) {
                                     setState(() {
                                       _selectedSlot = selected ? slotId : null;
+                                      _selectedDateTime =
+                                          selected ? date : null;
                                     });
                                   },
                                   backgroundColor:
@@ -576,12 +580,16 @@ class _LawyerDetailScreenState extends ConsumerState<LawyerDetailScreen>
                   child: SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
-                      onPressed: _selectedSlot != null
+                      onPressed: _selectedSlot != null && lawyer != null
                           ? () {
-                              // TODO: Implement booking logic
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Selected: $_selectedSlot'),
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => BookingScreen(
+                                    lawyer: lawyer,
+                                    selectedSlot: _selectedSlot!,
+                                    selectedDate: _getSelectedDateString(),
+                                  ),
                                 ),
                               );
                             }
@@ -644,5 +652,10 @@ class _LawyerDetailScreenState extends ConsumerState<LawyerDetailScreen>
       'Dec',
     ];
     return months[month - 1];
+  }
+
+  String _getSelectedDateString() {
+    if (_selectedDateTime == null) return '';
+    return '${_selectedDateTime!.day} ${_getMonthName(_selectedDateTime!.month)}';
   }
 }
