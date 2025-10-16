@@ -43,3 +43,8 @@ final lawyerRemoteDataSourceProvider = Provider<LawyerRemoteDataSource>((ref) =>
 final lawyerRepositoryProvider = Provider<LawyerRepository>((ref) => LawyerRepository(remoteDataSource: ref.watch(lawyerRemoteDataSourceProvider)));
 
 final lawyerListNotifierProvider = StateNotifierProvider<LawyerListNotifier, LawyerListState>((ref) => LawyerListNotifier(ref.watch(lawyerRepositoryProvider)));
+
+final lawyerDetailProvider = FutureProvider.family<LawyerEntity?, String>((ref, id) async {
+  final repo = ref.watch(lawyerRepositoryProvider);
+  return await repo.getLawyerById(id);
+});

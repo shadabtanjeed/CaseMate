@@ -1,7 +1,7 @@
 from typing import List, Optional
 from datetime import datetime
 from bson import ObjectId
-from ..db_async import find_many
+from ..db_async import find_many, find_one
 from ..models.user import UserInDB
 import logging
 
@@ -48,6 +48,26 @@ class LawyerService:
             return results
         except Exception as e:
             logging.exception("Error searching lawyers: %s", e)
+            raise
+
+    async def get_lawyer_by_id(self, lawyer_id: str) -> Optional[UserInDB]:
+        try:
+            # assume lawyer_id is an ObjectId string
+            oid = ObjectId(lawyer_id)
+        except Exception:
+            return None
+
+        try:
+            doc = await find_one("lawyers", {"_id": oid})
+            if not doc:
+                return None
+            try:
+                doc["_id"] = str(doc["_id"])
+            except Exception:
+                pass
+            return UserInDB(**doc)
+        except Exception:
+            logging.exception("Error fetching lawyer by id %s", lawyer_id)
             raise
 
 

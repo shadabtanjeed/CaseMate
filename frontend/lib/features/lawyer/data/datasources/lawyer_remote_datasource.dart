@@ -38,4 +38,14 @@ class LawyerRemoteDataSource {
 
     return rawList.map((e) => LawyerModel.fromJson(e as Map<String, dynamic>)).toList();
   }
+
+  Future<LawyerModel?> getLawyerById(String id) async {
+    final response = await apiClient.get('/lawyers/$id');
+    // Debug: print raw response
+    // ignore: avoid_print
+    print('LawyerRemoteDataSource.getLawyerById raw response: $response');
+    final data = response['data'] as Map<String, dynamic>?;
+    if (data == null) return null;
+    return LawyerModel.fromJson(data);
+  }
 }

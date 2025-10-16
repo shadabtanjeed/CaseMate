@@ -20,13 +20,9 @@ class LawyerModel extends LawyerEntity {
   });
 
   factory LawyerModel.fromJson(Map<String, dynamic> json) {
-    int parseId(dynamic raw) {
-      if (raw == null) return raw.hashCode.abs();
-      if (raw is int) return raw;
-      final s = raw.toString();
-      final parsed = int.tryParse(s);
-      if (parsed != null) return parsed;
-      return s.hashCode.abs();
+    String parseId(dynamic raw) {
+      if (raw == null) return '';
+      return raw.toString();
     }
 
     double parseRating(dynamic r) {
@@ -38,7 +34,7 @@ class LawyerModel extends LawyerEntity {
     }
 
     return LawyerModel(
-      id: parseId(json['id']),
+  id: parseId(json['id']),
       name: json['name'] ?? '',
       specialization: json['specialization'] ?? '',
       rating: parseRating(json['rating']),

@@ -5,7 +5,7 @@ import '../../presentation/providers/lawyer_provider.dart';
 
 class LawyerDiscoveryScreen extends ConsumerStatefulWidget {
   final VoidCallback onBack;
-  final Function(int) onSelectLawyer;
+  final Function(String) onSelectLawyer;
 
   const LawyerDiscoveryScreen({
     super.key,
@@ -361,7 +361,7 @@ class _LawyerDiscoveryScreenState extends ConsumerState<LawyerDiscoveryScreen> {
 }
 
 class LawyerCard {
-  final int id;
+  final String id;
   final String name;
   final String specialization;
   final double rating;

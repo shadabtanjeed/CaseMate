@@ -22,4 +22,8 @@ class LawyerRepository {
     );
     return list;
   }
+
+  Future<LawyerEntity?> getLawyerById(String id) async {
+    return await remoteDataSource.getLawyerById(id);
+  }
 }
