@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import asyncio
 from .database import connect_to_mongo, close_mongo_connection
-from .routes import auth, chatbot_routes, lawyers
+from .routes import auth, chatbot_routes, lawyers, schedule_routes
 
 
 @asynccontextmanager
