@@ -17,6 +17,8 @@ import 'features/notifications/presentation/screens/notifications_screen.dart';
 import 'features/lawyer/lawyer_home_screen.dart';
 import 'features/lawyer/lawyer_clients_screen.dart';
 import 'features/lawyer/lawyer_schedule_screen.dart';
+import 'features/auth/data/datasources/auth_local_datasources.dart';
+import 'features/auth/data/models/user_model.dart';
 import 'features/lawyer/lawyer_cases_screen.dart';
 import 'features/lawyer/lawyer_reviews_screen.dart';
 import 'features/lawyer/lawyer_earnings_screen.dart';
@@ -200,7 +202,20 @@ class _AppNavigatorState extends State<AppNavigator> {
         return LawyerClientsScreen(onBack: () => _navigateTo('lawyer-home'));
 
       case 'lawyer-schedule':
-        return LawyerScheduleScreen(onBack: () => _navigateTo('lawyer-home'));
+        return FutureBuilder<UserModel?>(
+          future: AuthLocalDataSourceImpl().getUser(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState != ConnectionState.done) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            final user = snapshot.data;
+            final email = user?.email ?? '';
+            return LawyerScheduleScreen(
+              onBack: () => _navigateTo('lawyer-home'),
+              currentLawyerEmail: email,
+            );
+          },
+        );
 
       case 'lawyer-cases':
         return LawyerCasesScreen(onBack: () => _navigateTo('lawyer-home'));
@@ -253,11 +268,11 @@ class _AppNavigatorState extends State<AppNavigator> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
+                const Row(
                   children: [
-                    const Icon(Icons.navigation, color: AppTheme.primaryBlue),
-                    const SizedBox(width: 8),
-                    const Text(
+                    Icon(Icons.navigation, color: AppTheme.primaryBlue),
+                    SizedBox(width: 8),
+                    Text(
                       'Navigate to Screen',
                       style:
                           TextStyle(fontSize: 20, fontWeight: FontWeight.bold),

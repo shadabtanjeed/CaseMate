@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import '../../core/theme/app_theme.dart';
 import 'data/schedule_service.dart';
 
 class LawyerScheduleScreen extends StatefulWidget {
   final VoidCallback onBack;
+  final String currentLawyerEmail;
 
-  const LawyerScheduleScreen({super.key, required this.onBack});
+  const LawyerScheduleScreen({
+    super.key,
+    required this.onBack,
+    required this.currentLawyerEmail,
+  });
 
   @override
   State<LawyerScheduleScreen> createState() => _LawyerScheduleScreenState();
@@ -15,6 +21,8 @@ class _LawyerScheduleScreenState extends State<LawyerScheduleScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final ScheduleService _scheduleService = ScheduleService();
+  bool _hasUnsavedChanges = false;
+  Timer? _hideFabTimer;
 
   // Weekly schedule: weekday -> list of time slots
   Map<String, List<Map<String, String>>> _weeklySchedule = {
@@ -38,8 +46,6 @@ class _LawyerScheduleScreenState extends State<LawyerScheduleScreen>
     'Sunday': false,
   };
 
-  String currentLawyerEmail =
-      'lawyer@example.com'; // replace with real user email
   bool _isLoading = true;
 
   @override
@@ -47,12 +53,17 @@ class _LawyerScheduleScreenState extends State<LawyerScheduleScreen>
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _loadScheduleFromBackend();
+    // refresh UI on tab change so FAB visibility updates
+    _tabController.addListener(() {
+      if (mounted) setState(() {});
+    });
   }
 
   Future<void> _loadScheduleFromBackend() async {
     setState(() => _isLoading = true);
     try {
-      final response = await _scheduleService.getSchedule(currentLawyerEmail);
+      final response =
+          await _scheduleService.getSchedule(widget.currentLawyerEmail);
       // Response format: { email, weekly_schedule: [{ weekday, slots: [{start, end}] }] }
       // This is now a recurring weekly pattern
       if (response['weekly_schedule'] != null) {
@@ -96,12 +107,16 @@ class _LawyerScheduleScreenState extends State<LawyerScheduleScreen>
       // 404 or other error - keep all weekdays unselected
       print('No schedule found or error loading: $e');
     } finally {
-      setState(() => _isLoading = false);
+      setState(() {
+        _isLoading = false;
+        _hasUnsavedChanges = false; // loaded schedule is the source of truth
+      });
     }
   }
 
   @override
   void dispose() {
+    _hideFabTimer?.cancel();
     _tabController.dispose();
     super.dispose();
   }
@@ -115,24 +130,36 @@ class _LawyerScheduleScreenState extends State<LawyerScheduleScreen>
           children: [
             _buildHeader(),
             _buildTabBar(),
+            const SizedBox(height: 8),
             Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildAppointmentsTab(),
-                  _buildAvailabilityTab(),
-                ],
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildAppointmentsTab(),
+                    _buildAvailabilityTab(),
+                  ],
+                ),
               ),
             ),
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showSetAvailabilityDialog(),
-        backgroundColor: AppTheme.primaryBlue,
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text('Set Availability',
-            style: TextStyle(color: Colors.white)),
+      floatingActionButton: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 300),
+        child: (_tabController.index == 1 && _hasUnsavedChanges)
+            ? FloatingActionButton.extended(
+                key: const ValueKey('save-fab'),
+                onPressed: _saveSchedule,
+                backgroundColor: AppTheme.primaryBlue,
+                icon: const Icon(Icons.save, color: Colors.white),
+                label: const Text('Save changes',
+                    style: TextStyle(color: Colors.white)),
+              )
+            : const SizedBox.shrink(
+                key: ValueKey('no-fab'),
+              ),
       ),
     );
   }
@@ -167,30 +194,30 @@ class _LawyerScheduleScreenState extends State<LawyerScheduleScreen>
                   ),
                 ),
               ),
-              // Save button to persist schedule to backend
-              IconButton(
-                icon: const Icon(Icons.save, color: Colors.white),
-                onPressed: _saveSchedule,
-                tooltip: 'Save Schedule',
-              ),
-              IconButton(
-                icon: const Icon(Icons.calendar_month, color: Colors.white),
-                onPressed: () {},
-              ),
+              // Save/calendar icons removed; saving is available via inline FAB when changes exist
             ],
           ),
           const SizedBox(height: 16),
           Row(
             children: [
               Expanded(
-                child: _buildHeaderStat('5', 'Today', Icons.today),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6.0),
+                  child: _buildHeaderStat('5', 'Today', Icons.today),
+                ),
               ),
               Expanded(
-                child: _buildHeaderStat('23', 'This Week', Icons.date_range),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6.0),
+                  child: _buildHeaderStat('23', 'This Week', Icons.date_range),
+                ),
               ),
               Expanded(
-                child:
-                    _buildHeaderStat('87', 'This Month', Icons.calendar_today),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6.0),
+                  child: _buildHeaderStat(
+                      '87', 'This Month', Icons.calendar_today),
+                ),
               ),
             ],
           ),
@@ -202,14 +229,17 @@ class _LawyerScheduleScreenState extends State<LawyerScheduleScreen>
   Widget _buildHeaderStat(String value, String label, IconData icon) {
     return Container(
       padding: const EdgeInsets.all(12),
+      constraints: const BoxConstraints(minHeight: 72),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.2),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Icon(icon, color: Colors.white, size: 20),
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
           Text(
             value,
             style: const TextStyle(
@@ -218,11 +248,13 @@ class _LawyerScheduleScreenState extends State<LawyerScheduleScreen>
               fontWeight: FontWeight.w600,
             ),
           ),
+          const SizedBox(height: 2),
           Text(
             label,
+            textAlign: TextAlign.center,
             style: const TextStyle(
               color: Colors.white70,
-              fontSize: 11,
+              fontSize: 12,
             ),
           ),
         ],
@@ -234,7 +266,8 @@ class _LawyerScheduleScreenState extends State<LawyerScheduleScreen>
     return Container(
       margin: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        border: Border.all(color: AppTheme.borderColor),
+        // remove explicit border to avoid horizontal divider
+        // color: Colors.transparent,
         borderRadius: BorderRadius.circular(12),
       ),
       child: TabBar(
@@ -243,11 +276,19 @@ class _LawyerScheduleScreenState extends State<LawyerScheduleScreen>
           color: AppTheme.primaryBlue,
           borderRadius: BorderRadius.circular(12),
         ),
+        indicatorPadding:
+            const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+        labelPadding: EdgeInsets.zero,
         labelColor: Colors.white,
-        unselectedLabelColor: AppTheme.textPrimary,
         tabs: const [
-          Tab(text: 'Appointments'),
-          Tab(text: 'Availability'),
+          Tab(
+              child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                  child: Text('Appointments'))),
+          Tab(
+              child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                  child: Text('Availability'))),
         ],
       ),
     );
@@ -534,9 +575,7 @@ class _LawyerScheduleScreenState extends State<LawyerScheduleScreen>
     );
   }
 
-  void _showSetAvailabilityDialog() async {
-    // This is now deprecated - using _addTimeSlot instead
-  }
+  // _showSetAvailabilityDialog removed; use inline Add Time Slot actions
 
   Future<void> _addTimeSlot(String weekday) async {
     final start = await showTimePicker(
@@ -558,6 +597,7 @@ class _LawyerScheduleScreenState extends State<LawyerScheduleScreen>
     setState(() {
       _weeklySchedule[weekday]!.add(slot);
       _weekdayEnabled[weekday] = true;
+      _hasUnsavedChanges = true;
     });
   }
 
@@ -588,6 +628,7 @@ class _LawyerScheduleScreenState extends State<LawyerScheduleScreen>
 
     setState(() {
       _weeklySchedule[weekday]![index] = slot;
+      _hasUnsavedChanges = true;
     });
   }
 
@@ -606,19 +647,26 @@ class _LawyerScheduleScreenState extends State<LawyerScheduleScreen>
     });
 
     final payload = {
-      'email': currentLawyerEmail,
+      'email': widget.currentLawyerEmail,
       'weekly_schedule': weeklyScheduleList,
     };
 
     try {
-      await _scheduleService.saveSchedule(currentLawyerEmail, payload);
+      await _scheduleService.saveSchedule(widget.currentLawyerEmail, payload);
       if (mounted) {
+        // show small confirmation and hide FAB after a short delay
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Schedule saved successfully!'),
-            backgroundColor: Colors.green,
+            content: Text('All changes saved'),
+            backgroundColor: AppTheme.primaryBlue,
+            duration: Duration(milliseconds: 1200),
           ),
         );
+        // delay clearing the unsaved flag so the user sees the confirmation
+        _hideFabTimer?.cancel();
+        _hideFabTimer = Timer(const Duration(milliseconds: 1200), () {
+          if (mounted) setState(() => _hasUnsavedChanges = false);
+        });
       }
     } catch (e) {
       if (mounted) {
@@ -649,8 +697,8 @@ class _LawyerScheduleScreenState extends State<LawyerScheduleScreen>
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: AppTheme.accentBlue.withOpacity(0.3)),
             ),
-            child: Row(
-              children: const [
+            child: const Row(
+              children: [
                 Icon(Icons.info_outline, color: AppTheme.primaryBlue),
                 SizedBox(width: 12),
                 Expanded(
@@ -664,20 +712,11 @@ class _LawyerScheduleScreenState extends State<LawyerScheduleScreen>
           ),
           const SizedBox(height: 24),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            mainAxisAlignment: MainAxisAlignment.start,
             children: [
               Text(
                 'Weekly Schedule',
                 style: Theme.of(context).textTheme.titleLarge,
-              ),
-              ElevatedButton.icon(
-                onPressed: _saveSchedule,
-                icon: const Icon(Icons.save, size: 18),
-                label: const Text('Save Schedule'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primaryBlue,
-                  foregroundColor: Colors.white,
-                ),
               ),
             ],
           ),
@@ -722,13 +761,15 @@ class _LawyerScheduleScreenState extends State<LawyerScheduleScreen>
                 onChanged: (val) {
                   setState(() {
                     _weekdayEnabled[day] = val;
+                    // mark unsaved for both enable/disable
                     if (!val) {
                       // Clear slots when disabled
                       _weeklySchedule[day] = [];
                     }
+                    _hasUnsavedChanges = true;
                   });
                 },
-                activeColor: AppTheme.primaryBlue,
+                activeThumbColor: AppTheme.primaryBlue,
               ),
             ],
           ),

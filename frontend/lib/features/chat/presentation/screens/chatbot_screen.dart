@@ -120,20 +120,20 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
               itemCount: _messages.length + (_isLoading ? 1 : 0),
               itemBuilder: (context, index) {
                 if (_isLoading && index == _messages.length) {
-                  return Align(
+                  return const Align(
                     alignment: Alignment.centerLeft,
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8.0),
+                      padding: EdgeInsets.symmetric(vertical: 8.0),
                       child: Row(
                         children: [
-                          const CircleAvatar(
+                          CircleAvatar(
                             radius: 16,
                             backgroundColor: AppTheme.accentBlue,
                             child: Icon(Icons.smart_toy,
                                 size: 16, color: Colors.white),
                           ),
-                          const SizedBox(width: 8),
-                          const Text('...'),
+                          SizedBox(width: 8),
+                          Text('...'),
                         ],
                       ),
                     ),
