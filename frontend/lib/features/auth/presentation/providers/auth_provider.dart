@@ -117,13 +117,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
   // Initialize auth state on app start
   Future<void> checkAuthStatus() async {
     state = state.copyWith(isLoading: true);
-    
+
     try {
       final isLoggedIn = await localDataSource.isLoggedIn();
-      
+
       if (isLoggedIn) {
         final user = await getCurrentUserUseCase();
-        
+
         if (user != null) {
           state = AuthState(
             user: user,
@@ -148,11 +148,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> _tryRefreshToken() async {
     try {
       final refreshToken = await localDataSource.getRefreshToken();
-      
+
       if (refreshToken != null) {
         await refreshTokenUseCase(refreshToken);
         final user = await getCurrentUserUseCase();
-        
+
         if (user != null) {
           state = AuthState(
             user: user,
@@ -166,7 +166,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       // Refresh failed, clear data
       await logoutUseCase();
     }
-    
+
     state = AuthState(isLoading: false);
   }
 
@@ -211,6 +211,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     String? specialization,
     int? yearsOfExperience,
     String? bio,
+    double? consultationFee,
   }) async {
     state = state.copyWith(isLoading: true, error: null);
 
@@ -228,6 +229,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         specialization: specialization,
         yearsOfExperience: yearsOfExperience,
         bio: bio,
+        consultationFee: consultationFee,
       );
       // Do not auto-login after registration. Let UI navigate to Login screen.
       state = state.copyWith(isLoading: false);

@@ -37,6 +37,7 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+  @override
   Future<User> register({
     required String email,
     required String password,
@@ -50,6 +51,7 @@ class AuthRepositoryImpl implements AuthRepository {
     String? bio,
     String? phone, // Added phone parameter
     String? location, // Added location parameter
+    double? consultationFee,
   }) async {
     final userModel = await remoteDataSource.register(
       email: email,
@@ -64,6 +66,7 @@ class AuthRepositoryImpl implements AuthRepository {
       bio: bio,
       phone: phone, // Pass phone to remoteDataSource
       location: location, // Pass location to remoteDataSource
+      consultationFee: consultationFee,
     );
 
     // Note: After registration, user still needs to login

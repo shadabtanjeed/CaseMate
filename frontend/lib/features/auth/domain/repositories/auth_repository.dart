@@ -20,6 +20,7 @@ abstract class AuthRepository {
     String? specialization,
     int? yearsOfExperience,
     String? bio,
+    double? consultationFee,
   });
 
   Future<void> logout();

@@ -25,6 +25,7 @@ from fastapi import HTTPException, status
 
 class AuthService:
     _ph = PasswordHasher()
+
     @staticmethod
     async def register_user(user_data: UserRegister) -> UserInDB:
         # Check if email already exists in either collection
@@ -58,8 +59,8 @@ class AuthService:
             "updated_at": datetime.utcnow(),
             "phone": user_data.phone,  # Save phone number
             "location": user_data.location,  # Save location
-            "education": getattr(user_data, 'education', None),
-            "achievements": getattr(user_data, 'achievements', None),
+            "education": getattr(user_data, "education", None),
+            "achievements": getattr(user_data, "achievements", None),
         }
 
         # Add lawyer-specific fields
@@ -70,6 +71,7 @@ class AuthService:
                     "specialization": user_data.specialization,
                     "years_of_experience": user_data.years_of_experience or 0,
                     "bio": user_data.bio or "",
+                    "consultation_fee": user_data.consultation_fee or 0.0,
                     "rating": 0.0,
                     "total_cases": 0,
                 }
@@ -142,9 +144,10 @@ class AuthService:
         new_access_token = create_access_token(data={"sub": user_id})
         return new_access_token
 
-
     @staticmethod
-    async def change_password(user_id: str, old_password: str, new_password: str) -> bool:
+    async def change_password(
+        user_id: str, old_password: str, new_password: str
+    ) -> bool:
         # Find user in either collection
         user = await find_one("users", {"_id": ObjectId(user_id)})
         collection = "users"
@@ -166,7 +169,12 @@ class AuthService:
         await update_one(
             collection,
             {"_id": user["_id"]},
-            {"$set": {"hashed_password": hashed_password, "updated_at": datetime.utcnow()}},
+            {
+                "$set": {
+                    "hashed_password": hashed_password,
+                    "updated_at": datetime.utcnow(),
+                }
+            },
         )
 
         return True
@@ -174,7 +182,7 @@ class AuthService:
     @staticmethod
     def _generate_verification_code() -> str:
         """Generate a 6-digit verification code"""
-        return ''.join(random.choices(string.digits, k=6))
+        return "".join(random.choices(string.digits, k=6))
 
     @staticmethod
     async def request_password_reset(email: str) -> bool:
@@ -197,7 +205,7 @@ class AuthService:
             "code": verification_code,
             "created_at": datetime.utcnow(),
             "expires_at": datetime.utcnow() + timedelta(minutes=15),  # 15 min expiry
-            "used": False
+            "used": False,
         }
 
         try:
@@ -215,11 +223,13 @@ class AuthService:
             logging.exception(f"Error creating password reset code: {e}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to process password reset request"
+                detail="Failed to process password reset request",
             )
 
     @staticmethod
-    async def verify_and_reset_password(email: str, code: str, new_password: str) -> bool:
+    async def verify_and_reset_password(
+        email: str, code: str, new_password: str
+    ) -> bool:
         """Verify code and reset password"""
         # Find valid reset code
         reset_code = await find_one(
@@ -228,14 +238,14 @@ class AuthService:
                 "email": email,
                 "code": code,
                 "used": False,
-                "expires_at": {"$gt": datetime.utcnow()}
-            }
+                "expires_at": {"$gt": datetime.utcnow()},
+            },
         )
 
         if not reset_code:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid or expired verification code"
+                detail="Invalid or expired verification code",
             )
 
         # Find user in either collection
@@ -247,8 +257,7 @@ class AuthService:
 
         if not user:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
             )
 
         # Update password
@@ -259,16 +268,14 @@ class AuthService:
             {
                 "$set": {
                     "hashed_password": hashed_password,
-                    "updated_at": datetime.utcnow()
+                    "updated_at": datetime.utcnow(),
                 }
-            }
+            },
         )
 
         # Mark code as used
         await update_one(
-            "password_reset_codes",
-            {"_id": reset_code["_id"]},
-            {"$set": {"used": True}}
+            "password_reset_codes", {"_id": reset_code["_id"]}, {"$set": {"used": True}}
         )
 
         return True

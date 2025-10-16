@@ -25,6 +25,7 @@ class UserRegister(UserBase):
     specialization: Optional[str] = None
     years_of_experience: Optional[int] = None
     bio: Optional[str] = None
+    consultation_fee: Optional[float] = None
 
 
 class UserLogin(BaseModel):
@@ -53,6 +54,7 @@ class UserResponse(UserBase):
     achievements: Optional[str] = None
     rating: Optional[float] = None
     total_cases: Optional[int] = None
+    consultation_fee: Optional[float] = None
 
     class Config:
         from_attributes = True
@@ -60,20 +62,22 @@ class UserResponse(UserBase):
 
 class PasswordResetRequest(BaseModel):
     """Request password reset - sends verification code"""
+
     email: EmailStr
 
 
 class PasswordReset(BaseModel):
     """Reset password with verification code"""
+
     email: EmailStr
     code: str = Field(..., min_length=6, max_length=6)
     new_password: str = Field(..., min_length=6)
 
-    @field_validator('code')
+    @field_validator("code")
     @classmethod
     def validate_code(cls, v):
         if not v.isdigit():
-            raise ValueError('Code must contain only digits')
+            raise ValueError("Code must contain only digits")
         return v
 
 
