@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:legal_assist/features/auth/presentation/screens/verify_pin_screen.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../providers/auth_provider.dart';
 
@@ -31,12 +32,12 @@ class _ForgotPasswordScreenImplState
         );
 
     if (success && mounted) {
-      setState(() => _emailSent = true);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Password reset instructions sent!'),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 4),
+      // Navigate to PIN verification screen
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => VerifyPinScreen(
+            email: _emailController.text.trim(),
+          ),
         ),
       );
     }

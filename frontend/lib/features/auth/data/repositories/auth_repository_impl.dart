@@ -122,11 +122,13 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<void> resetPassword({
-    required String token,
+    required String email,
+    required String code,
     required String newPassword,
   }) async {
     await remoteDataSource.resetPassword(
-      token: token,
+      email: email,
+      code: code,
       newPassword: newPassword,
     );
   }
@@ -148,8 +150,17 @@ class AuthRepositoryImpl implements AuthRepository {
     );
   }
 
+
   @override
   Future<bool> isLoggedIn() async {
     return await localDataSource.isLoggedIn();
+  }
+
+  @override
+  Future<void> verifyResetPin({
+    required String email,
+    required String pin,
+  }) async {
+    await remoteDataSource.verifyResetPin(email: email, pin: pin);
   }
 }
