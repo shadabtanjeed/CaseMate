@@ -4,8 +4,8 @@ import '../../domain/entities/lawyer_entity.dart';
 
 class BookingScreen extends StatefulWidget {
   final LawyerEntity lawyer;
-  final String selectedSlot; // Format: "YYYY-MM-DD_HH:MM"
-  final String selectedDate; // Format: "16 Oct"
+  final String selectedSlot;
+  final String selectedDate;
 
   const BookingScreen({
     super.key,

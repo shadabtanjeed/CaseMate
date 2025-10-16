@@ -10,12 +10,14 @@ class LawyerDetailScreen extends ConsumerStatefulWidget {
   final String lawyerId;
   final VoidCallback onBack;
   final VoidCallback onBookConsultation;
+  final int initialTabIndex;
 
   const LawyerDetailScreen({
     super.key,
     required this.lawyerId,
     required this.onBack,
     required this.onBookConsultation,
+    this.initialTabIndex = 0,
   });
 
   @override
@@ -33,6 +35,10 @@ class _LawyerDetailScreenState extends ConsumerState<LawyerDetailScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    // Use post-frame callback to ensure the tab is set after the first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _tabController.animateTo(widget.initialTabIndex);
+    });
   }
 
   @override
