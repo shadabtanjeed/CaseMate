@@ -4,6 +4,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../providers/lawyer_provider.dart';
 import '../../domain/entities/lawyer_entity.dart';
 import '../../../lawyer/data/schedule_service.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import 'booking_screen.dart';
 
 class LawyerDetailScreen extends ConsumerStatefulWidget {
@@ -87,7 +88,7 @@ class _LawyerDetailScreenState extends ConsumerState<LawyerDetailScreen>
                       const Center(child: Text('Failed to load lawyer')),
                 ),
                 detail.when(
-                  data: (l) => _buildAvailabilityTab(l),
+                  data: (l) => _buildAvailabilityTab(l, ref),
                   loading: () =>
                       const Center(child: CircularProgressIndicator()),
                   error: (e, st) =>
@@ -416,7 +417,7 @@ class _LawyerDetailScreenState extends ConsumerState<LawyerDetailScreen>
     );
   }
 
-  Widget _buildAvailabilityTab([LawyerEntity? lawyer]) {
+  Widget _buildAvailabilityTab(LawyerEntity? lawyer, WidgetRef widgetRef) {
     final Future<Map<String, dynamic>> scheduleFuture =
         (lawyer != null && (lawyer.email ?? '').isNotEmpty)
             ? ScheduleService().getSchedule(lawyer.email!)
@@ -526,20 +527,46 @@ class _LawyerDetailScreenState extends ConsumerState<LawyerDetailScreen>
                     final dateOnlyStr =
                         date.toString().split(' ')[0]; // YYYY-MM-DD
 
-                    return FutureBuilder<List<Map<String, dynamic>>>(
-                      future: _scheduleService.getAppointmentsByDate(
-                        lawyer!.email ?? '',
-                        dateOnlyStr,
-                      ),
-                      builder: (context, appointmentSnapshot) {
-                        // Extract booked time slots from appointments
+                    // Fetch both lawyer appointments and user appointments
+                    return FutureBuilder<Map<String, dynamic>>(
+                      future: Future.wait([
+                        _scheduleService.getAppointmentsByDate(
+                          lawyer!.email ?? '',
+                          dateOnlyStr,
+                        ),
+                        _getUserAppointmentsForDate(dateOnlyStr, widgetRef),
+                      ]).then((results) {
+                        return {
+                          'lawyerAppointments': results[0],
+                          'userAppointments': results[1],
+                        };
+                      }),
+                      builder: (context, snapshot) {
+                        // Extract booked time slots from lawyer appointments
                         final bookedSlots = <String>[];
-                        if (appointmentSnapshot.hasData) {
-                          for (final appt in appointmentSnapshot.data ??
-                              <Map<String, dynamic>>[]) {
+                        if (snapshot.hasData) {
+                          final lawyerAppts =
+                              snapshot.data?['lawyerAppointments']
+                                      as List<Map<String, dynamic>>? ??
+                                  [];
+                          for (final appt in lawyerAppts) {
                             final startTime = appt['start_time'] ?? '';
                             if (startTime.isNotEmpty) {
                               bookedSlots.add(startTime);
+                            }
+                          }
+                        }
+
+                        // Extract user's time slots (conflicts)
+                        final userConflictSlots = <String>[];
+                        if (snapshot.hasData) {
+                          final userAppts = snapshot.data?['userAppointments']
+                                  as List<Map<String, dynamic>>? ??
+                              [];
+                          for (final appt in userAppts) {
+                            final startTime = appt['start_time'] ?? '';
+                            if (startTime.isNotEmpty) {
+                              userConflictSlots.add(startTime);
                             }
                           }
                         }
@@ -568,12 +595,24 @@ class _LawyerDetailScreenState extends ConsumerState<LawyerDetailScreen>
                                     final isSelected = _selectedSlot == slotId;
                                     final isBooked =
                                         bookedSlots.contains(start);
+                                    final hasUserConflict =
+                                        userConflictSlots.contains(start);
+
+                                    // Determine label
+                                    String? conflictLabel;
+                                    if (isBooked) {
+                                      conflictLabel = ' (Booked)';
+                                    } else if (hasUserConflict) {
+                                      conflictLabel = ' (You have appointment)';
+                                    }
 
                                     return FilterChip(
                                       label: Text(
-                                          '${_formatTimeToAMPM(start)} - ${_formatTimeToAMPM(end)}${isBooked ? ' (Booked)' : ''}'),
-                                      selected: isSelected && !isBooked,
-                                      onSelected: isBooked
+                                          '${_formatTimeToAMPM(start)} - ${_formatTimeToAMPM(end)}${conflictLabel ?? ''}'),
+                                      selected: isSelected &&
+                                          !isBooked &&
+                                          !hasUserConflict,
+                                      onSelected: (isBooked || hasUserConflict)
                                           ? null
                                           : (selected) {
                                               setState(() {
@@ -583,20 +622,21 @@ class _LawyerDetailScreenState extends ConsumerState<LawyerDetailScreen>
                                                     selected ? date : null;
                                               });
                                             },
-                                      backgroundColor: isBooked
-                                          ? Colors.grey.withOpacity(0.2)
-                                          : AppTheme.primaryBlue
-                                              .withOpacity(0.1),
+                                      backgroundColor:
+                                          (isBooked || hasUserConflict)
+                                              ? Colors.grey.withOpacity(0.2)
+                                              : AppTheme.primaryBlue
+                                                  .withOpacity(0.1),
                                       selectedColor: AppTheme.primaryBlue,
                                       labelStyle: TextStyle(
-                                        color: isBooked
+                                        color: (isBooked || hasUserConflict)
                                             ? Colors.grey
                                             : isSelected
                                                 ? Colors.white
                                                 : AppTheme.primaryBlue,
                                       ),
                                       side: BorderSide(
-                                        color: isBooked
+                                        color: (isBooked || hasUserConflict)
                                             ? Colors.grey.withOpacity(0.3)
                                             : isSelected
                                                 ? AppTheme.primaryBlue
@@ -726,5 +766,29 @@ class _LawyerDetailScreenState extends ConsumerState<LawyerDetailScreen>
   String _getSelectedDateString() {
     if (_selectedDateTime == null) return '';
     return '${_selectedDateTime!.day} ${_getMonthName(_selectedDateTime!.month)} ${_selectedDateTime!.year}';
+  }
+
+  /// Get user's appointments for a specific date
+  /// Returns empty list if user is not authenticated or no appointments found
+  Future<List<Map<String, dynamic>>> _getUserAppointmentsForDate(
+    String dateOnlyStr,
+    WidgetRef widgetRef,
+  ) async {
+    try {
+      final authState = widgetRef.read(authProvider);
+      final userEmail = authState.user?.email;
+
+      if (userEmail == null || userEmail.isEmpty) {
+        return [];
+      }
+
+      return await _scheduleService.getUserAppointmentsByDate(
+        userEmail,
+        dateOnlyStr,
+      );
+    } catch (e) {
+      print('Error getting user appointments: $e');
+      return [];
+    }
   }
 }
