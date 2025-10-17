@@ -3,9 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../booking/presentation/providers/appointment_provider.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../auth/presentation/providers/auth_provider.dart';
-import '../../../lawyer/presentation/providers/lawyer_provider.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   final VoidCallback onNavigateToChatbot;
@@ -109,7 +106,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   children: [
                     Text(
                       'Hello,',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white70),
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodyMedium
+                          ?.copyWith(color: Colors.white70),
                     ),
                     Text(
                       authState.user?.fullName ?? 'User',
@@ -156,7 +156,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
           const SizedBox(height: 16),
           TextField(
-            onTap: widget.onNavigateToLawyers,
+            onTap: () => widget.onNavigateToLawyers(null),
             readOnly: true,
             decoration: InputDecoration(
               prefixIcon: const Icon(Icons.search),
@@ -198,7 +198,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget _buildCategoriesSection(BuildContext context, WidgetRef ref) {
-    final specAsync = ref.watch(lawyerSpecializationsProvider);
+    final categories = [
+      {'icon': Icons.security, 'label': 'Criminal'},
+      {'icon': Icons.balance, 'label': 'Civil'},
+      {'icon': Icons.people, 'label': 'Family'},
+      {'icon': Icons.home, 'label': 'Property'},
+      {'icon': Icons.business, 'label': 'Corporate'},
+      {'icon': Icons.account_balance, 'label': 'Tax'},
+    ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -211,7 +218,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               style: Theme.of(context).textTheme.titleLarge,
             ),
             TextButton(
-              onPressed: widget.onNavigateToLawyers,
+              onPressed: () => widget.onNavigateToLawyers(null),
               child: const Text('View All'),
             ),
           ],
@@ -229,45 +236,39 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           itemCount: categories.length,
           itemBuilder: (context, index) {
             final category = categories[index];
+            final icon = category['icon'] as IconData;
+            final label = category['label'] as String;
             return InkWell(
-              onTap: widget.onNavigateToLawyers,
+              onTap: () => widget.onNavigateToLawyers(null),
               borderRadius: BorderRadius.circular(16),
               child: Container(
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppTheme.borderColor),
+                  border: Border.all(color: AppTheme.borderColor),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryBlue.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        icon,
+                        color: AppTheme.primaryBlue,
+                        size: 24,
+                      ),
                     ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: AppTheme.primaryBlue.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Icon(
-                            Icons.business,
-                            color: AppTheme.primaryBlue,
-                            size: 24,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(label, style: Theme.of(context).textTheme.bodyMedium),
-                      ],
-                    ),
-                  ),
-                );
-              },
+                    const SizedBox(height: 8),
+                    Text(label, style: Theme.of(context).textTheme.bodyMedium),
+                  ],
+                ),
+              ),
             );
           },
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, st) => Center(child: Text('Failed to load categories')),
         ),
       ],
     );
@@ -292,12 +293,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: 8),
-                const Text('Get instant legal answers powered by our assistant.'),
+                const Text(
+                    'Get instant legal answers powered by our assistant.'),
               ],
             ),
           ),
           ElevatedButton(
-            onPressed: onNavigateToChatbot,
+            onPressed: widget.onNavigateToChatbot,
             child: const Text('Chat'),
           ),
         ],
@@ -613,7 +615,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 Icons.balance,
                 'Lawyers',
                 false,
-                widget.onNavigateToLawyers,
+                () => widget.onNavigateToLawyers(null),
               ),
               _buildFloatingChatButton(),
               _buildNavItem(Icons.calendar_today, 'Sessions', false, () {}),

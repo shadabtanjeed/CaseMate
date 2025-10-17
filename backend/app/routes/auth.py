@@ -1,7 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from ..schemas.user import (
-    UserRegister, UserLogin, UserResponse,
-    PasswordResetRequest, PasswordReset, PasswordChange, VerifyResetCode
+    UserRegister,
+    UserLogin,
+    UserResponse,
+    PasswordResetRequest,
+    PasswordReset,
+    PasswordChange,
+    VerifyResetCode,
 )
 from ..schemas.token import Token, RefreshTokenRequest
 from ..services.auth_service import auth_service
@@ -122,23 +127,18 @@ async def request_password_reset(request: PasswordResetRequest):
         "expires_in_minutes": 15,
     }
 
+
 @router.post("/password/verify-code")
 async def verify_reset_code(verify_data: VerifyResetCode):
     """Verify the reset code"""
     await auth_service.verify_reset_code(verify_data.email, verify_data.code)
-    return {
-        "message": "Code verified successfully",
-        "email": verify_data.email
-    }
+    return {"message": "Code verified successfully", "email": verify_data.email}
+
 
 @router.post("/password/reset")
 async def reset_password(reset_data: PasswordReset):
     """Reset password using verification code"""
-    await auth_service.verify_and_reset_password(
-        reset_data.email, reset_data.code, reset_data.new_password
     await auth_service.reset_password_with_code(
-        reset_data.email,
-        reset_data.code,
-        reset_data.new_password
+        reset_data.email, reset_data.code, reset_data.new_password
     )
     return {"message": "Password reset successfully"}

@@ -130,6 +130,7 @@ class _AppNavigatorState extends State<AppNavigator> {
         content: Text(message),
         behavior: SnackBarBehavior.fixed,
         backgroundColor: AppTheme.primaryBlue,
+        duration: const Duration(milliseconds: 1500),
       ),
     );
   }
@@ -157,7 +158,8 @@ class _AppNavigatorState extends State<AppNavigator> {
       case 'home':
         return HomeScreen(
           onNavigateToChatbot: () => _navigateTo('chatbot'),
-          onNavigateToLawyers: (String? spec) => _navigateToLawyersWithSpecialization(spec),
+          onNavigateToLawyers: (String? spec) =>
+              _navigateToLawyersWithSpecialization(spec),
           onNavigateToProfile: () => _navigateTo('profile'),
           onNavigateToNotifications: () => _navigateTo('notifications'),
         );
