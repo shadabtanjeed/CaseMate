@@ -218,6 +218,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     String? specialization,
     int? yearsOfExperience,
     String? bio,
+    double? consultationFee,
   }) async {
     state = state.copyWith(isLoading: true, error: null);
 
@@ -235,6 +236,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         specialization: specialization,
         yearsOfExperience: yearsOfExperience,
         bio: bio,
+        consultationFee: consultationFee,
       );
       // Do not auto-login after registration. Let UI navigate to Login screen.
       state = state.copyWith(isLoading: false);

@@ -24,7 +24,7 @@ async def connect_to_mongo():
 
     def _connect():
         # Use a short server selection timeout so bad URIs don't hang for long
-        client = MongoClient(settings.MONGODB_URL, serverSelectionTimeoutMS=5000)
+        client = MongoClient(settings.MONGODB_URL, serverSelectionTimeoutMS=30000)
         # force a connection attempt
         client.admin.command("ping")
         return client
@@ -50,5 +50,7 @@ async def close_mongo_connection():
 
 def get_database():
     if db.client is None:
-        raise RuntimeError("Database client not connected. Call connect_to_mongo() first.")
+        raise RuntimeError(
+            "Database client not connected. Call connect_to_mongo() first."
+        )
     return db.client[settings.DATABASE_NAME]

@@ -3,17 +3,22 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../providers/lawyer_provider.dart';
 import '../../domain/entities/lawyer_entity.dart';
+import '../../../lawyer/data/schedule_service.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
+import 'booking_screen.dart';
 
 class LawyerDetailScreen extends ConsumerStatefulWidget {
   final String lawyerId;
   final VoidCallback onBack;
   final VoidCallback onBookConsultation;
+  final int initialTabIndex;
 
   const LawyerDetailScreen({
     super.key,
     required this.lawyerId,
     required this.onBack,
     required this.onBookConsultation,
+    this.initialTabIndex = 0,
   });
 
   @override
@@ -23,16 +28,27 @@ class LawyerDetailScreen extends ConsumerStatefulWidget {
 class _LawyerDetailScreenState extends ConsumerState<LawyerDetailScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  String? _selectedSlot; // Track selected slot (date_time format)
+  DateTime? _selectedDateTime; // Store the actual DateTime
+  final ScrollController _availabilityScrollController = ScrollController();
+
+  // Schedule service for fetching appointments
+  final ScheduleService _scheduleService = ScheduleService();
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    // Use post-frame callback to ensure the tab is set after the first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _tabController.animateTo(widget.initialTabIndex);
+    });
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _availabilityScrollController.dispose();
     super.dispose();
   }
 
@@ -46,8 +62,10 @@ class _LawyerDetailScreenState extends ConsumerState<LawyerDetailScreen>
           _buildHeader(),
           // show profile card based on provider state
           detail.when(
-            data: (l) => l != null ? _buildProfileCard(l) : _buildProfileCard(null),
-            loading: () => SizedBox(height: 220, child: Center(child: CircularProgressIndicator())),
+            data: (l) =>
+                l != null ? _buildProfileCard(l) : _buildProfileCard(null),
+            loading: () => const SizedBox(
+                height: 220, child: Center(child: CircularProgressIndicator())),
             error: (e, st) => _buildProfileCard(null),
           ),
           _buildTabBar(),
@@ -57,17 +75,30 @@ class _LawyerDetailScreenState extends ConsumerState<LawyerDetailScreen>
               children: [
                 detail.when(
                   data: (l) => _buildAboutTab(l),
-                  loading: () => const Center(child: CircularProgressIndicator()),
-                  error: (e, st) => Center(child: Text('Failed to load lawyer')),
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
+                  error: (e, st) =>
+                      const Center(child: Text('Failed to load lawyer')),
                 ),
-                _buildReviewsTab(),
-                _buildSlotsTab(),
+                detail.when(
+                  data: (l) => _buildReviewsTab(l),
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
+                  error: (e, st) =>
+                      const Center(child: Text('Failed to load lawyer')),
+                ),
+                detail.when(
+                  data: (l) => _buildAvailabilityTab(l, ref),
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
+                  error: (e, st) =>
+                      const Center(child: Text('Failed to load lawyer')),
+                ),
               ],
             ),
           ),
         ],
       ),
-      bottomNavigationBar: _buildBottomBar(),
     );
   }
 
@@ -102,7 +133,9 @@ class _LawyerDetailScreenState extends ConsumerState<LawyerDetailScreen>
     final reviews = lawyer?.reviews ?? 124;
     final experience = lawyer?.experience ?? 12;
     final location = lawyer?.location ?? 'New York, NY';
-    final feeText = lawyer != null ? '\$${lawyer.fee} per consultation' : '\$150 per consultation';
+    final feeText = lawyer != null
+        ? '\$${lawyer.fee} per consultation'
+        : '\$150 per consultation';
 
     return Transform.translate(
       offset: const Offset(0, -30),
@@ -137,12 +170,14 @@ class _LawyerDetailScreenState extends ConsumerState<LawyerDetailScreen>
                           ),
                           Text(
                             specialization,
-                            style: const TextStyle(color: AppTheme.textSecondary),
+                            style:
+                                const TextStyle(color: AppTheme.textSecondary),
                           ),
                           const SizedBox(height: 8),
                           Row(
                             children: [
-                              const Icon(Icons.star, size: 16, color: Colors.amber),
+                              const Icon(Icons.star,
+                                  size: 16, color: Colors.amber),
                               const SizedBox(width: 4),
                               Text('$rating ($reviews reviews)'),
                             ],
@@ -185,7 +220,8 @@ class _LawyerDetailScreenState extends ConsumerState<LawyerDetailScreen>
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _buildStatItem(Icons.work_outline, '$experience years exp.'),
+                    _buildStatItem(
+                        Icons.work_outline, '$experience years exp.'),
                     _buildStatItem(Icons.location_on, location),
                   ],
                 ),
@@ -221,10 +257,6 @@ class _LawyerDetailScreenState extends ConsumerState<LawyerDetailScreen>
   Widget _buildTabBar() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        border: Border.all(color: AppTheme.borderColor),
-        borderRadius: BorderRadius.circular(12),
-      ),
       child: TabBar(
         controller: _tabController,
         indicator: BoxDecoration(
@@ -233,10 +265,28 @@ class _LawyerDetailScreenState extends ConsumerState<LawyerDetailScreen>
         ),
         labelColor: Colors.white,
         unselectedLabelColor: AppTheme.textPrimary,
+        labelPadding: EdgeInsets.zero,
+        indicatorPadding:
+            const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
         tabs: const [
-          Tab(text: 'About'),
-          Tab(text: 'Reviews'),
-          Tab(text: 'Available Slots'),
+          Tab(
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+              child: Text('About'),
+            ),
+          ),
+          Tab(
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+              child: Text('Reviews'),
+            ),
+          ),
+          Tab(
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+              child: Text('Availability'),
+            ),
+          ),
         ],
       ),
     );
@@ -267,14 +317,14 @@ class _LawyerDetailScreenState extends ConsumerState<LawyerDetailScreen>
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
-          ...education.map((e) => _buildListItem(Icons.school, e)).toList(),
+          ...education.map((e) => _buildListItem(Icons.school, e)),
           const SizedBox(height: 24),
           const Text(
             'Achievements',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
-          ...achievements.map((a) => _buildListItem(Icons.star, a)).toList(),
+          ...achievements.map((a) => _buildListItem(Icons.star, a)),
           const SizedBox(height: 100),
         ],
       ),
@@ -294,7 +344,7 @@ class _LawyerDetailScreenState extends ConsumerState<LawyerDetailScreen>
     );
   }
 
-  Widget _buildReviewsTab() {
+  Widget _buildReviewsTab([LawyerEntity? lawyer]) {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -367,80 +417,378 @@ class _LawyerDetailScreenState extends ConsumerState<LawyerDetailScreen>
     );
   }
 
-  Widget _buildSlotsTab() {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        _buildSlotCard('Oct 12', 'Monday', [
-          '9:00 AM',
-          '11:00 AM',
-          '2:00 PM',
-          '4:00 PM',
-        ]),
-        _buildSlotCard('Oct 13', 'Tuesday', ['10:00 AM', '1:00 PM', '3:00 PM']),
-        _buildSlotCard('Oct 14', 'Wednesday', [
-          '9:30 AM',
-          '11:30 AM',
-          '2:30 PM',
-        ]),
-      ],
+  Widget _buildAvailabilityTab(LawyerEntity? lawyer, WidgetRef widgetRef) {
+    final Future<Map<String, dynamic>> scheduleFuture =
+        (lawyer != null && (lawyer.email ?? '').isNotEmpty)
+            ? ScheduleService().getSchedule(lawyer.email!)
+            : Future.value({});
+
+    return FutureBuilder<Map<String, dynamic>>(
+      future: scheduleFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        } else if (snapshot.hasError) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.schedule_outlined,
+                      size: 48, color: AppTheme.textSecondary),
+                  SizedBox(height: 16),
+                  Text('No availability set',
+                      style: TextStyle(color: AppTheme.textSecondary)),
+                ],
+              ),
+            ),
+          );
+        } else if (snapshot.hasData && (snapshot.data ?? {}).isNotEmpty) {
+          final data = snapshot.data!;
+          final weekly = data['weekly_schedule'] as List<dynamic>? ?? [];
+
+          if (weekly.isEmpty) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.schedule_outlined,
+                        size: 48, color: AppTheme.textSecondary),
+                    SizedBox(height: 16),
+                    Text('No availability set',
+                        style: TextStyle(color: AppTheme.textSecondary)),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          // Build a map of weekday -> slots for easier lookup
+          final weekdaySlots = <String, List<dynamic>>{};
+          for (final d in weekly) {
+            final weekday = d['weekday'] ?? '';
+            final slots = (d['slots'] as List<dynamic>? ?? []);
+            if (slots.isNotEmpty) {
+              weekdaySlots[weekday] = slots;
+            }
+          }
+
+          // Generate dates for next 4 weeks
+          final today = DateTime.now();
+          final dateSlots = <Map<String, dynamic>>[];
+
+          for (int i = 0; i < 28; i++) {
+            final date = today.add(Duration(days: i));
+            final weekdayName = _getWeekdayName(date.weekday);
+
+            if (weekdaySlots.containsKey(weekdayName)) {
+              dateSlots.add({
+                'date': date,
+                'weekday': weekdayName,
+                'slots': weekdaySlots[weekdayName],
+              });
+            }
+          }
+
+          if (dateSlots.isEmpty) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.schedule_outlined,
+                        size: 48, color: AppTheme.textSecondary),
+                    SizedBox(height: 16),
+                    Text('No available dates in the next 4 weeks',
+                        style: TextStyle(color: AppTheme.textSecondary)),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          return Column(
+            children: [
+              Expanded(
+                child: ListView.builder(
+                  controller: _availabilityScrollController,
+                  padding: const EdgeInsets.all(16),
+                  itemCount: dateSlots.length,
+                  itemBuilder: (context, index) {
+                    final item = dateSlots[index];
+                    final date = item['date'] as DateTime;
+                    final slots = item['slots'] as List<dynamic>;
+                    final dateStr =
+                        '${date.day} ${_getMonthName(date.month)} ${date.year}';
+                    final dateOnlyStr =
+                        date.toString().split(' ')[0]; // YYYY-MM-DD
+
+                    // Fetch both lawyer appointments and user appointments
+                    return FutureBuilder<Map<String, dynamic>>(
+                      future: Future.wait([
+                        _scheduleService.getAppointmentsByDate(
+                          lawyer!.email ?? '',
+                          dateOnlyStr,
+                        ),
+                        _getUserAppointmentsForDate(dateOnlyStr, widgetRef),
+                      ]).then((results) {
+                        return {
+                          'lawyerAppointments': results[0],
+                          'userAppointments': results[1],
+                        };
+                      }),
+                      builder: (context, snapshot) {
+                        // Extract booked time slots from lawyer appointments
+                        final bookedSlots = <String>[];
+                        if (snapshot.hasData) {
+                          final lawyerAppts =
+                              snapshot.data?['lawyerAppointments']
+                                      as List<Map<String, dynamic>>? ??
+                                  [];
+                          for (final appt in lawyerAppts) {
+                            final startTime = appt['start_time'] ?? '';
+                            if (startTime.isNotEmpty) {
+                              bookedSlots.add(startTime);
+                            }
+                          }
+                        }
+
+                        // Extract user's time slots (conflicts)
+                        final userConflictSlots = <String>[];
+                        if (snapshot.hasData) {
+                          final userAppts = snapshot.data?['userAppointments']
+                                  as List<Map<String, dynamic>>? ??
+                              [];
+                          for (final appt in userAppts) {
+                            final startTime = appt['start_time'] ?? '';
+                            if (startTime.isNotEmpty) {
+                              userConflictSlots.add(startTime);
+                            }
+                          }
+                        }
+
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  dateStr,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 16),
+                                ),
+                                const SizedBox(height: 12),
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: slots.map((slot) {
+                                    final start = slot['start'] ?? '';
+                                    final end = slot['end'] ?? '';
+                                    final slotId = '${dateOnlyStr}_$start';
+                                    final isSelected = _selectedSlot == slotId;
+                                    final isBooked =
+                                        bookedSlots.contains(start);
+                                    final hasUserConflict =
+                                        userConflictSlots.contains(start);
+
+                                    // Determine label
+                                    String? conflictLabel;
+                                    if (isBooked) {
+                                      conflictLabel = ' (Booked)';
+                                    } else if (hasUserConflict) {
+                                      conflictLabel = ' (You have appointment)';
+                                    }
+
+                                    return FilterChip(
+                                      label: Text(
+                                          '${_formatTimeToAMPM(start)} - ${_formatTimeToAMPM(end)}${conflictLabel ?? ''}'),
+                                      selected: isSelected &&
+                                          !isBooked &&
+                                          !hasUserConflict,
+                                      onSelected: (isBooked || hasUserConflict)
+                                          ? null
+                                          : (selected) {
+                                              setState(() {
+                                                _selectedSlot =
+                                                    selected ? slotId : null;
+                                                _selectedDateTime =
+                                                    selected ? date : null;
+                                              });
+                                            },
+                                      backgroundColor:
+                                          (isBooked || hasUserConflict)
+                                              ? Colors.grey.withOpacity(0.2)
+                                              : AppTheme.primaryBlue
+                                                  .withOpacity(0.1),
+                                      selectedColor: AppTheme.primaryBlue,
+                                      labelStyle: TextStyle(
+                                        color: (isBooked || hasUserConflict)
+                                            ? Colors.grey
+                                            : isSelected
+                                                ? Colors.white
+                                                : AppTheme.primaryBlue,
+                                      ),
+                                      side: BorderSide(
+                                        color: (isBooked || hasUserConflict)
+                                            ? Colors.grey.withOpacity(0.3)
+                                            : isSelected
+                                                ? AppTheme.primaryBlue
+                                                : AppTheme.borderColor,
+                                      ),
+                                    );
+                                  }).toList(),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  border: Border(top: BorderSide(color: AppTheme.borderColor)),
+                ),
+                child: SafeArea(
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: _selectedSlot != null && lawyer != null
+                          ? () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => BookingScreen(
+                                    lawyer: lawyer,
+                                    selectedSlot: _selectedSlot!,
+                                    selectedDate: _getSelectedDateString(),
+                                    onBookingSuccess: () {
+                                      // Pop all screens and go back to home
+                                      // Pop booking screen
+                                      Navigator.popUntil(
+                                          context, (route) => route.isFirst);
+                                      // Trigger the main app onBack callback to handle state
+                                      widget.onBack();
+                                    },
+                                  ),
+                                ),
+                              );
+                            }
+                          : null,
+                      icon: const Icon(Icons.check_circle),
+                      label: const Text('Book Appointment'),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        }
+
+        return const Center(
+          child: Padding(
+            padding: EdgeInsets.all(16),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.schedule_outlined,
+                    size: 48, color: AppTheme.textSecondary),
+                SizedBox(height: 16),
+                Text('No availability set',
+                    style: TextStyle(color: AppTheme.textSecondary)),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildSlotCard(String date, String day, List<String> times) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '$date - $day',
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: times.map((time) {
-                return OutlinedButton(onPressed: () {}, child: Text(time));
-              }).toList(),
-            ),
-          ],
-        ),
-      ),
-    );
+  String _getWeekdayName(int weekday) {
+    const weekdays = [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday',
+    ];
+    return weekdays[weekday - 1];
   }
 
-  Widget _buildBottomBar() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: AppTheme.borderColor)),
-      ),
-      child: SafeArea(
-        child: Row(
-          children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: () {},
-                icon: const Icon(Icons.chat_bubble_outline),
-                label: const Text('Chat Now'),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: ElevatedButton.icon(
-                onPressed: widget.onBookConsultation,
-                icon: const Icon(Icons.videocam),
-                label: const Text('Book'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+  String _getMonthName(int month) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return months[month - 1];
+  }
+
+  String _formatTimeToAMPM(String time24) {
+    try {
+      final parts = time24.split(':');
+      if (parts.length != 2) return time24;
+
+      final hour = int.parse(parts[0]);
+      final minute = parts[1];
+
+      final period = hour >= 12 ? 'PM' : 'AM';
+      final hour12 = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+
+      return '$hour12:$minute $period';
+    } catch (e) {
+      return time24;
+    }
+  }
+
+  String _getSelectedDateString() {
+    if (_selectedDateTime == null) return '';
+    return '${_selectedDateTime!.day} ${_getMonthName(_selectedDateTime!.month)} ${_selectedDateTime!.year}';
+  }
+
+  /// Get user's appointments for a specific date
+  /// Returns empty list if user is not authenticated or no appointments found
+  Future<List<Map<String, dynamic>>> _getUserAppointmentsForDate(
+    String dateOnlyStr,
+    WidgetRef widgetRef,
+  ) async {
+    try {
+      final authState = widgetRef.read(authProvider);
+      final userEmail = authState.user?.email;
+
+      if (userEmail == null || userEmail.isEmpty) {
+        return [];
+      }
+
+      return await _scheduleService.getUserAppointmentsByDate(
+        userEmail,
+        dateOnlyStr,
+      );
+    } catch (e) {
+      print('Error getting user appointments: $e');
+      return [];
+    }
   }
 }

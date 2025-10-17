@@ -10,6 +10,7 @@ router = APIRouter(prefix="/chatbot", tags=["chatbot"])
 
 class ChatRequest(BaseModel):
     message: str
+    context: Optional[str] = None  # Conversation context (not used for retrieval)
     top_k: Optional[int] = 6
     score_threshold: Optional[float] = 0.18
 
@@ -30,6 +31,7 @@ async def chat_endpoint(req: ChatRequest):
     try:
         result = run_inference(
             req.message,
+            context=req.context,
             top_k=req.top_k or 6,
             score_threshold=req.score_threshold or 0.18,
         )

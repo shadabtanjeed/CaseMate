@@ -20,11 +20,11 @@ class VerifyPinScreen extends ConsumerStatefulWidget {
 class _VerifyPinScreenState extends ConsumerState<VerifyPinScreen> {
   final List<TextEditingController> _pinControllers = List.generate(
     6,
-        (index) => TextEditingController(),
+    (index) => TextEditingController(),
   );
   final List<FocusNode> _focusNodes = List.generate(
     6,
-        (index) => FocusNode(),
+    (index) => FocusNode(),
   );
 
   @override
@@ -56,9 +56,9 @@ class _VerifyPinScreenState extends ConsumerState<VerifyPinScreen> {
     }
 
     final success = await ref.read(authProvider.notifier).verifyResetPin(
-      email: widget.email,
-      pin: pin,
-    );
+          email: widget.email,
+          pin: pin,
+        );
 
     if (success && mounted) {
       // Navigate to reset password screen with email AND pin
@@ -75,8 +75,8 @@ class _VerifyPinScreenState extends ConsumerState<VerifyPinScreen> {
 
   Future<void> _resendPin() async {
     final success = await ref.read(authProvider.notifier).requestPasswordReset(
-      widget.email,
-    );
+          widget.email,
+        );
 
     if (success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -125,7 +125,7 @@ class _VerifyPinScreenState extends ConsumerState<VerifyPinScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Icon(
+                const Icon(
                   Icons.pin_outlined,
                   size: 80,
                   color: AppTheme.primaryBlue,
@@ -134,25 +134,25 @@ class _VerifyPinScreenState extends ConsumerState<VerifyPinScreen> {
                 Text(
                   'Enter Verification PIN',
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                        fontWeight: FontWeight.bold,
+                      ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 16),
                 Text(
                   'We sent a 6-digit PIN to',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppTheme.textSecondary,
-                  ),
+                        color: AppTheme.textSecondary,
+                      ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 8),
                 Text(
                   widget.email,
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.primaryBlue,
-                  ),
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.primaryBlue,
+                      ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 48),
@@ -161,7 +161,7 @@ class _VerifyPinScreenState extends ConsumerState<VerifyPinScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: List.generate(
                     6,
-                        (index) => SizedBox(
+                    (index) => SizedBox(
                       width: 45,
                       child: TextFormField(
                         controller: _pinControllers[index],
@@ -209,20 +209,20 @@ class _VerifyPinScreenState extends ConsumerState<VerifyPinScreen> {
                   ),
                   child: authState.isLoading
                       ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  )
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
                       : const Text(
-                    'Verify PIN',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                          'Verify PIN',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                 ),
                 const SizedBox(height: 16),
                 Row(

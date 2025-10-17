@@ -6,17 +6,20 @@ import '../../presentation/providers/lawyer_provider.dart';
 class LawyerDiscoveryScreen extends ConsumerStatefulWidget {
   final VoidCallback onBack;
   final Function(String) onSelectLawyer;
+  final Function(String)? onBookNowLawyer;
   final String? initialSpecialization;
 
   const LawyerDiscoveryScreen({
     super.key,
     required this.onBack,
     required this.onSelectLawyer,
+    this.onBookNowLawyer,
     this.initialSpecialization,
   });
 
   @override
-  ConsumerState<LawyerDiscoveryScreen> createState() => _LawyerDiscoveryScreenState();
+  ConsumerState<LawyerDiscoveryScreen> createState() =>
+      _LawyerDiscoveryScreenState();
 }
 
 class _LawyerDiscoveryScreenState extends ConsumerState<LawyerDiscoveryScreen> {
@@ -40,12 +43,13 @@ class _LawyerDiscoveryScreenState extends ConsumerState<LawyerDiscoveryScreen> {
           );
     });
   }
-  
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     // Persist the incoming specialization so later filter actions include it
-    if (widget.initialSpecialization != null && _selectedSpecialization == null) {
+    if (widget.initialSpecialization != null &&
+        _selectedSpecialization == null) {
       setState(() {
         _selectedSpecialization = widget.initialSpecialization;
         // Optionally prefill the search field to show the active filter
@@ -133,7 +137,12 @@ class _LawyerDiscoveryScreenState extends ConsumerState<LawyerDiscoveryScreen> {
               Expanded(
                 child: TextField(
                   controller: _searchController,
-                  onSubmitted: (v) => ref.read(lawyerListNotifierProvider.notifier).search(q: v, specialization: _selectedSpecialization, minRating: _selectedMinRating),
+                  onSubmitted: (v) => ref
+                      .read(lawyerListNotifierProvider.notifier)
+                      .search(
+                          q: v,
+                          specialization: _selectedSpecialization,
+                          minRating: _selectedMinRating),
                   decoration: InputDecoration(
                     hintText: 'Search by name or specialization...',
                     prefixIcon: const Icon(Icons.search),
@@ -293,7 +302,7 @@ class _LawyerDiscoveryScreenState extends ConsumerState<LawyerDiscoveryScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: () {},
+                    onPressed: () => _bookNowLawyer(lawyer.id),
                     child: const Text('Book Now'),
                   ),
                 ),
@@ -303,6 +312,10 @@ class _LawyerDiscoveryScreenState extends ConsumerState<LawyerDiscoveryScreen> {
         ),
       ),
     );
+  }
+
+  void _bookNowLawyer(String lawyerId) {
+    widget.onBookNowLawyer?.call(lawyerId) ?? widget.onSelectLawyer(lawyerId);
   }
 
   void _showFilterSheet(BuildContext context) {
@@ -332,11 +345,12 @@ class _LawyerDiscoveryScreenState extends ConsumerState<LawyerDiscoveryScreen> {
                   decoration: const InputDecoration(
                     border: OutlineInputBorder(),
                   ),
-                  value: _selectedSpecialization,
+                  initialValue: _selectedSpecialization,
                   items: specs
                       .map((s) => DropdownMenuItem(value: s, child: Text(s)))
                       .toList(),
-                  onChanged: (value) => setState(() => _selectedSpecialization = value),
+                  onChanged: (value) =>
+                      setState(() => _selectedSpecialization = value),
                 );
               },
               loading: () => const SizedBox(
@@ -365,7 +379,8 @@ class _LawyerDiscoveryScreenState extends ConsumerState<LawyerDiscoveryScreen> {
                 DropdownMenuItem(value: '4.0', child: Text('4.0+ Stars')),
                 DropdownMenuItem(value: '3.5', child: Text('3.5+ Stars')),
               ],
-              onChanged: (value) => _selectedMinRating = value != null ? double.tryParse(value) : null,
+              onChanged: (value) => _selectedMinRating =
+                  value != null ? double.tryParse(value) : null,
             ),
             const SizedBox(height: 24),
             SizedBox(
@@ -374,10 +389,12 @@ class _LawyerDiscoveryScreenState extends ConsumerState<LawyerDiscoveryScreen> {
                 onPressed: () {
                   // apply filters and search
                   ref.read(lawyerListNotifierProvider.notifier).search(
-                    q: _searchController.text.trim().isEmpty ? null : _searchController.text.trim(),
-                    specialization: _selectedSpecialization,
-                    minRating: _selectedMinRating,
-                  );
+                        q: _searchController.text.trim().isEmpty
+                            ? null
+                            : _searchController.text.trim(),
+                        specialization: _selectedSpecialization,
+                        minRating: _selectedMinRating,
+                      );
                   Navigator.pop(context);
                 },
                 child: const Text('Apply Filters'),

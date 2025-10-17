@@ -343,8 +343,8 @@ class ProfileScreen extends StatelessWidget {
       title: Text(title),
       subtitle: Text(subtitle, style: const TextStyle(fontSize: 12)),
       value: value,
-  onChanged: (val) {},
-  activeColor: AppTheme.primaryBlue,
+      onChanged: (val) {},
+      activeThumbColor: AppTheme.primaryBlue,
     );
   }
 }

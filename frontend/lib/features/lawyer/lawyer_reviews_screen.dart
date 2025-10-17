@@ -77,9 +77,9 @@ class LawyerReviewsScreen extends StatelessWidget {
             ),
             child: Row(
               children: [
-                Expanded(
+                const Expanded(
                   child: Column(
-                    children: const [
+                    children: [
                       Text(
                         '4.9',
                         style: TextStyle(
@@ -132,7 +132,7 @@ class LawyerReviewsScreen extends StatelessWidget {
   }
 
   Widget _buildRatingBar(int stars, int count) {
-    final total = 124;
+    const total = 124;
     final percentage = count / total;
 
     return Padding(
@@ -384,11 +384,11 @@ class LawyerReviewsScreen extends StatelessWidget {
                 color: AppTheme.accentBlue.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Column(
+              child: const Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
-                    children: const [
+                    children: [
                       Icon(Icons.reply, size: 16, color: AppTheme.primaryBlue),
                       SizedBox(width: 8),
                       Text(
@@ -401,8 +401,8 @@ class LawyerReviewsScreen extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
-                  const Text(
+                  SizedBox(height: 8),
+                  Text(
                     'Thank you for your kind words! It was a pleasure working with you.',
                     style: TextStyle(
                       fontSize: 13,

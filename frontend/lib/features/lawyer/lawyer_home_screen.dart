@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
+import '../auth/presentation/providers/auth_provider.dart';
+import '../booking/presentation/providers/appointment_provider.dart';
 
-class LawyerHomeScreen extends StatefulWidget {
+class LawyerHomeScreen extends ConsumerStatefulWidget {
   final VoidCallback onNavigateToClients;
   final VoidCallback onNavigateToSchedule;
   final VoidCallback onNavigateToEarnings;
@@ -22,14 +25,60 @@ class LawyerHomeScreen extends StatefulWidget {
   });
 
   @override
-  State<LawyerHomeScreen> createState() => _LawyerHomeScreenState();
+  ConsumerState<LawyerHomeScreen> createState() => _LawyerHomeScreenState();
 }
 
-class _LawyerHomeScreenState extends State<LawyerHomeScreen> {
+class _LawyerHomeScreenState extends ConsumerState<LawyerHomeScreen> {
   int _selectedIndex = 0;
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Refresh appointments when screen is shown
+    _refreshAppointments();
+  }
+
+  void _refreshAppointments() {
+    final authState = ref.read(authProvider);
+    final lawyerEmail = authState.user?.email;
+
+    if (lawyerEmail != null && lawyerEmail.isNotEmpty) {
+      final refresh = ref.read(refreshLawyerAppointmentsProvider(lawyerEmail));
+      refresh();
+    }
+  }
+
+  // Helper method to format time to 12-hour AM/PM format
+  String _formatTimeToAmPm(String timeRange) {
+    try {
+      final times = timeRange.split(' - ');
+      if (times.length != 2) return timeRange;
+
+      final formatted = times.map((time) {
+        final parts = time.trim().split(':');
+        if (parts.length < 2) return time;
+
+        final hour = int.parse(parts[0]);
+        final minute = parts[1];
+
+        final period = hour >= 12 ? 'PM' : 'AM';
+        final hour12 = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+
+        return '$hour12:$minute $period';
+      }).toList();
+
+      return '${formatted[0]} - ${formatted[1]}';
+    } catch (e) {
+      return timeRange;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    // Get lawyer email from auth provider
+    final authState = ref.watch(authProvider);
+    final lawyerEmail = authState.user?.email ?? '';
+
     return Scaffold(
       backgroundColor: AppTheme.background,
       body: SafeArea(
@@ -44,13 +93,19 @@ class _LawyerHomeScreenState extends State<LawyerHomeScreen> {
                   children: [
                     _buildQuickStats(),
                     const SizedBox(height: 24),
-                    _buildTodaySchedule(),
+                    if (lawyerEmail.isNotEmpty)
+                      _buildTodaySchedule(context, lawyerEmail, ref)
+                    else
+                      _buildTodaySchedulePlaceholder(),
                     const SizedBox(height: 24),
                     _buildQuickActions(),
                     const SizedBox(height: 24),
                     _buildRecentActivity(),
                     const SizedBox(height: 24),
-                    _buildUpcomingAppointments(),
+                    if (lawyerEmail.isNotEmpty)
+                      _buildUpcomingAppointments(context, lawyerEmail, ref)
+                    else
+                      _buildUpcomingAppointmentsPlaceholder(),
                     const SizedBox(height: 80),
                   ],
                 ),
@@ -276,7 +331,216 @@ class _LawyerHomeScreenState extends State<LawyerHomeScreen> {
     );
   }
 
-  Widget _buildTodaySchedule() {
+  Widget _buildTodaySchedule(
+      BuildContext context, String lawyerEmail, WidgetRef ref) {
+    final nextAppointment = ref.watch(nextAppointmentProvider(lawyerEmail));
+
+    return nextAppointment.when(
+      loading: () => _buildLoadingSchedule(context),
+      error: (err, stack) => _buildErrorSchedule(context),
+      data: (appointment) {
+        if (appointment == null) {
+          return _buildNoAppointmentSchedule(context);
+        }
+
+        // Parse appointment data
+        final userName = appointment['user_full_name'] ?? 'Client';
+        final caseType = appointment['case_type'] ?? 'General Consultation';
+        final consultationType = appointment['consultation_type'] ?? 'video';
+
+        // Format date
+        String formattedDate = '';
+        try {
+          final dateStr = appointment['date'];
+          final DateTime appointmentDate =
+              dateStr is String ? DateTime.parse(dateStr) : dateStr;
+          formattedDate = 'Oct ${appointmentDate.day}, ${appointmentDate.year}';
+        } catch (e) {
+          formattedDate = 'Upcoming';
+        }
+
+        // Format time to AM/PM
+        final String formattedTime = _formatTimeToAmPm(
+            '${appointment['start_time'] ?? '10:00'} - ${appointment['end_time'] ?? '11:00'}');
+
+        final displayType = consultationType == 'video'
+            ? 'Video Call'
+            : consultationType == 'phone'
+                ? 'Phone Call'
+                : 'Chat';
+
+        return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                AppTheme.accentBlue.withOpacity(0.2),
+                AppTheme.primaryBlue.withOpacity(0.1)
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppTheme.accentBlue.withOpacity(0.3)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryBlue,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.calendar_today,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Next Appointment',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '$userName - $caseType',
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Icon(Icons.calendar_month,
+                      size: 16,
+                      color: Theme.of(context).textTheme.bodySmall?.color),
+                  const SizedBox(width: 8),
+                  Text(
+                    formattedDate,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Icon(Icons.access_time,
+                      size: 16,
+                      color: Theme.of(context).textTheme.bodySmall?.color),
+                  const SizedBox(width: 8),
+                  Text(
+                    formattedTime,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  const Spacer(),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryBlue,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      displayType,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () {},
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppTheme.primaryBlue,
+                      ),
+                      child: const Text('Reschedule'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {},
+                      child: const Text('Start Now'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildLoadingSchedule(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppTheme.accentBlue.withOpacity(0.2),
+            AppTheme.primaryBlue.withOpacity(0.1)
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.accentBlue.withOpacity(0.3)),
+      ),
+      child: const Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+  }
+
+  Widget _buildErrorSchedule(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppTheme.accentBlue.withOpacity(0.2),
+            AppTheme.primaryBlue.withOpacity(0.1)
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.accentBlue.withOpacity(0.3)),
+      ),
+      child: Column(
+        children: [
+          Icon(Icons.error_outline,
+              size: 48, color: Theme.of(context).textTheme.bodySmall?.color),
+          const SizedBox(height: 16),
+          Text(
+            'Unable to load appointments',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNoAppointmentSchedule(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -314,12 +578,12 @@ class _LawyerHomeScreenState extends State<LawyerHomeScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Next Appointment',
+                      'No Appointments',
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'John Mitchell - Criminal Defense',
+                      'You have no upcoming appointments',
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                   ],
@@ -327,58 +591,28 @@ class _LawyerHomeScreenState extends State<LawyerHomeScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Icon(Icons.access_time,
-                  size: 16,
-                  color: Theme.of(context).textTheme.bodySmall?.color),
-              const SizedBox(width: 8),
-              Text(
-                '10:00 AM - 11:00 AM',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-              const Spacer(),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryBlue,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Text(
-                  'Video Call',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () {},
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppTheme.primaryBlue,
-                  ),
-                  child: const Text('Reschedule'),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: () {},
-                  child: const Text('Start Now'),
-                ),
-              ),
-            ],
-          ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildTodaySchedulePlaceholder() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppTheme.accentBlue.withOpacity(0.2),
+            AppTheme.primaryBlue.withOpacity(0.1)
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.accentBlue.withOpacity(0.3)),
+      ),
+      child: const Center(
+        child: CircularProgressIndicator(),
       ),
     );
   }
@@ -541,34 +775,83 @@ class _LawyerHomeScreenState extends State<LawyerHomeScreen> {
     );
   }
 
-  Widget _buildUpcomingAppointments() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  Widget _buildUpcomingAppointments(
+      BuildContext context, String lawyerEmail, WidgetRef ref) {
+    final upcomingAppointments =
+        ref.watch(upcomingAppointmentsProvider(lawyerEmail));
+
+    return upcomingAppointments.when(
+      loading: () => _buildUpcomingAppointmentsLoading(),
+      error: (err, stack) => _buildUpcomingAppointmentsError(),
+      data: (appointments) {
+        if (appointments.isEmpty) {
+          return _buildNoUpcomingAppointments(context);
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Upcoming Appointments',
-              style: Theme.of(context).textTheme.titleLarge,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Upcoming Consultations',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                TextButton(
+                  onPressed: widget.onNavigateToSchedule,
+                  child: const Text('See All'),
+                ),
+              ],
             ),
-            TextButton(
-              onPressed: widget.onNavigateToSchedule,
-              child: const Text('See All'),
-            ),
+            const SizedBox(height: 12),
+            ...appointments.map((appointment) {
+              return _buildAppointmentCardFromData(
+                context,
+                appointment,
+              );
+            }),
           ],
-        ),
-        const SizedBox(height: 12),
-        _buildAppointmentCard('Maria Garcia', 'Family Law', 'Oct 12, 2:00 PM',
-            'Phone Call', AppTheme.accentBlue),
-        _buildAppointmentCard('Robert Brown', 'Corporate Law',
-            'Oct 13, 11:00 AM', 'Video Call', AppTheme.primaryBlue),
-      ],
+        );
+      },
     );
   }
 
-  Widget _buildAppointmentCard(
-      String client, String caseType, String time, String type, Color color) {
+  Widget _buildAppointmentCardFromData(
+      BuildContext context, Map<String, dynamic> appointment) {
+    final userName = appointment['user_full_name'] ?? 'Client';
+    final caseType = appointment['case_type'] ?? 'General Consultation';
+    final consultationType = appointment['consultation_type'] ?? 'video';
+
+    // Format date
+    String formattedDate = '';
+    try {
+      final dateStr = appointment['date'];
+      final DateTime appointmentDate =
+          dateStr is String ? DateTime.parse(dateStr) : dateStr;
+      formattedDate = 'Oct ${appointmentDate.day}, ${appointmentDate.year}';
+    } catch (e) {
+      formattedDate = 'Upcoming';
+    }
+
+    // Format time to AM/PM
+    final time = _formatTimeToAmPm(
+        '${appointment['start_time'] ?? '10:00'} - ${appointment['end_time'] ?? '11:00'}');
+
+    // Map consultation type to color
+    Color color = AppTheme.primaryBlue;
+    if (consultationType == 'phone') {
+      color = AppTheme.accentBlue;
+    } else if (consultationType == 'chat') {
+      color = Colors.orange;
+    }
+
+    final displayType = consultationType == 'video'
+        ? 'Video Call'
+        : consultationType == 'phone'
+            ? 'Phone Call'
+            : 'Chat';
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -584,7 +867,7 @@ class _LawyerHomeScreenState extends State<LawyerHomeScreen> {
               CircleAvatar(
                 backgroundColor: color,
                 child: Text(
-                  client.split(' ').map((e) => e[0]).join(),
+                  userName.substring(0, 1).toUpperCase(),
                   style: const TextStyle(
                       color: Colors.white, fontWeight: FontWeight.w600),
                 ),
@@ -595,7 +878,7 @@ class _LawyerHomeScreenState extends State<LawyerHomeScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      client,
+                      userName,
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                     Text(
@@ -613,7 +896,7 @@ class _LawyerHomeScreenState extends State<LawyerHomeScreen> {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  type,
+                  displayType,
                   style: TextStyle(
                     fontSize: 11,
                     color: color,
@@ -624,6 +907,19 @@ class _LawyerHomeScreenState extends State<LawyerHomeScreen> {
             ],
           ),
           const SizedBox(height: 12),
+          Row(
+            children: [
+              Icon(Icons.calendar_month,
+                  size: 14,
+                  color: Theme.of(context).textTheme.bodySmall?.color),
+              const SizedBox(width: 4),
+              Text(
+                formattedDate,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
           Row(
             children: [
               Icon(Icons.access_time,
@@ -647,6 +943,126 @@ class _LawyerHomeScreenState extends State<LawyerHomeScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildUpcomingAppointmentsLoading() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Upcoming Consultations',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            TextButton(
+              onPressed: widget.onNavigateToSchedule,
+              child: const Text('See All'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        const Center(child: CircularProgressIndicator()),
+      ],
+    );
+  }
+
+  Widget _buildUpcomingAppointmentsError() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Upcoming Consultations',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            TextButton(
+              onPressed: widget.onNavigateToSchedule,
+              child: const Text('See All'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Center(
+          child: Text(
+            'Unable to load consultations',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildNoUpcomingAppointments(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Upcoming Consultations',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            TextButton(
+              onPressed: widget.onNavigateToSchedule,
+              child: const Text('See All'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Theme.of(context).dividerColor),
+          ),
+          child: Center(
+            child: Column(
+              children: [
+                Icon(
+                  Icons.calendar_today,
+                  size: 48,
+                  color: Theme.of(context).textTheme.bodySmall?.color,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'No upcoming consultations',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildUpcomingAppointmentsPlaceholder() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Upcoming Consultations',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            TextButton(
+              onPressed: widget.onNavigateToSchedule,
+              child: const Text('See All'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        const Center(child: CircularProgressIndicator()),
+      ],
     );
   }
 

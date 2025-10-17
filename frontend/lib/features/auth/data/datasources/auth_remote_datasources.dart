@@ -22,6 +22,7 @@ abstract class AuthRemoteDataSource {
     String? location,
     String? education,
     String? achievements,
+    double? consultationFee,
   });
 
   Future<UserModel> getCurrentUser(String accessToken);
@@ -84,6 +85,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     String? location,
     String? education,
     String? achievements,
+    double? consultationFee,
   }) async {
     final Map<String, dynamic> body = {
       'email': email,
@@ -101,6 +103,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       body['specialization'] = specialization;
       body['years_of_experience'] = yearsOfExperience;
       body['bio'] = bio;
+      body['consultation_fee'] = consultationFee;
     }
 
     final response = await apiClient.post(
@@ -108,7 +111,8 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       body: body,
     );
 
-    final Map<String, dynamic> json = Map<String, dynamic>.from(response as Map);
+    final Map<String, dynamic> json =
+        Map<String, dynamic>.from(response as Map);
     return UserModel.fromJson(json);
   }
 
@@ -119,7 +123,8 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       headers: ApiConstants.headersWithToken(accessToken),
     );
 
-    final Map<String, dynamic> json = Map<String, dynamic>.from(response as Map);
+    final Map<String, dynamic> json =
+        Map<String, dynamic>.from(response as Map);
     return UserModel.fromJson(json);
   }
 
@@ -130,7 +135,8 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       body: {'refresh_token': refreshToken},
     );
 
-    final Map<String, dynamic> json = Map<String, dynamic>.from(response as Map);
+    final Map<String, dynamic> json =
+        Map<String, dynamic>.from(response as Map);
     return json['access_token'] as String;
   }
 
