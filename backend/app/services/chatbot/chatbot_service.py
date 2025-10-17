@@ -171,6 +171,121 @@ def build_sources_block(hits: List[Dict], max_chars: int = 2000) -> str:
     return "\n\n".join(blocks)
 
 
+def is_general_question(question: str) -> bool:
+    """Check if the question is a general greeting or basic query that doesn't require legal sources."""
+    question_lower = question.lower().strip()
+
+    # Greetings and basic interaction
+    greetings = ["hi", "hello", "hey", "good morning", "good afternoon", "good evening"]
+    if any(
+        question_lower == greeting or question_lower.startswith(greeting + " ")
+        for greeting in greetings
+    ):
+        return True
+
+    # Identity questions
+    identity_patterns = [
+        "who are you",
+        "what are you",
+        "what is your name",
+        "introduce yourself",
+        "what can you do",
+        "what do you do",
+        "how can you help",
+        "can you help",
+        "what is this",
+        "what is legalbot",
+        "tell me about yourself",
+    ]
+    if any(pattern in question_lower for pattern in identity_patterns):
+        return True
+
+    return False
+
+
+def ask_groq_general(
+    question: str, context: Optional[str] = None, model: str = GROQ_MODEL
+):
+    """Answer general questions without legal sources, but maintain legal assistant context."""
+    system = (
+        "You are LegalBot, an AI legal assistant specializing in Bangladesh law. "
+        "You help users understand legal concepts, laws, and their rights under Bangladesh legal system. "
+        "For general questions and greetings, respond in a friendly and professional manner. "
+        "Keep responses concise (2-3 sentences for greetings, 4-5 for capability questions). "
+        "Always remind users that for specific legal advice, they should consult sources or a qualified lawyer."
+    )
+
+    user_prompt = f"Question: {question}"
+    if context and context.strip():
+        user_prompt = f"Context: {context}\n\n{user_prompt}"
+
+    if client is None:
+        return "Hello! I'm LegalBot, your AI legal assistant. I'm currently unavailable due to configuration issues."
+
+    try:
+        resp = client.chat.completions.create(
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": user_prompt},
+            ],
+            model=model,
+            temperature=0.7,  # Slightly higher for natural conversation
+        )
+        answer = (
+            getattr(resp.choices[0].message, "content", None)
+            or "I'm here to help with legal questions!"
+        )
+        print(f"✓ General response generated: {answer[:100]}...")
+        return answer
+    except Exception as e:
+        print(f"❌ Groq API call failed for general question: {e}")
+        return "Hello! I'm LegalBot, your AI legal assistant for Bangladesh law. How can I help you today?"
+
+
+def ask_groq_fallback(
+    question: str, context: Optional[str] = None, model: str = GROQ_MODEL
+):
+    """Fallback to general legal knowledge when no sources found, focused on Bangladesh law."""
+    print(f"🔄 Using fallback (general knowledge) for question: {question[:100]}...")
+
+    system = (
+        "You are LegalBot, an AI legal assistant specializing in Bangladesh law. "
+        "The user asked a legal question, but no specific law sources were found in the database. "
+        "Provide a helpful response using your general knowledge of Bangladesh legal system and common legal principles. "
+        "IMPORTANT: Start with '⚠️ **Using general knowledge** (specific law sources not found)' "
+        "Focus on Bangladesh law context when applicable. "
+        "If you know relevant legal principles or common practices in Bangladesh, share them. "
+        "Keep responses informative but always suggest consulting a qualified lawyer for specific legal advice. "
+        "Format in markdown. Be concise but helpful (4-8 sentences)."
+    )
+
+    user_prompt = f"Question: {question}\n\n" "Please provide a helpful response."
+
+    if context and context.strip():
+        user_prompt = f"Context: {context}\n\n{user_prompt}"
+
+    if client is None:
+        return "I do not know"
+
+    try:
+        resp = client.chat.completions.create(
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": user_prompt},
+            ],
+            model=model,
+            temperature=0.7,  # Slightly more creative for general knowledge
+        )
+        answer = getattr(resp.choices[0].message, "content", None) or "I do not know"
+        print(
+            f"✓ Fallback response generated (using general knowledge): {answer[:100]}..."
+        )
+        return answer
+    except Exception as e:
+        print(f"❌ Groq API call failed for fallback: {e}")
+        return "I do not know"
+
+
 def ask_groq(
     question: str, sources: str, context: Optional[str] = None, model: str = GROQ_MODEL
 ):
@@ -240,6 +355,14 @@ def run_inference(
         print(f"📝 Context provided: {context[:200]}...")
     print(f"⚙️  Parameters: top_k={top_k}, score_threshold={score_threshold:.4f}")
 
+    # Check if it's a general question (greeting, identity, etc.)
+    if is_general_question(question):
+        print("💬 Detected general question - responding without legal sources")
+        answer = ask_groq_general(question, context=context)
+        print("🏁 INFERENCE END (general response)")
+        print("=" * 80 + "\n")
+        return {"answer": answer, "hits": [], "type": "general"}
+
     # Use ONLY the question for retrieval (not context)
     hits = retrieve_hits(question, top_k=top_k)
     print(f"📊 Retrieved {len(hits)} raw hits before threshold filtering")
@@ -256,20 +379,37 @@ def run_inference(
     )
 
     if not hits:
-        print("⚠️  No hits passed threshold filter - returning 'I do not know'")
+        print("⚠️  No hits passed threshold filter - using general knowledge fallback")
+        answer = ask_groq_fallback(question, context=context)
+        print("🏁 INFERENCE END (fallback response)")
         print("=" * 80 + "\n")
-        return "I do not know"
+        return {"answer": answer, "hits": [], "type": "fallback"}
 
     print(f"📝 Building sources block from {len(hits)} filtered hits")
     sources = build_sources_block(hits)
     print(f"✓ Sources block length: {len(sources)} chars")
 
     answer = ask_groq(question, sources, context=context)
+
+    # If RAG returns "I do not know" or similar variations, try fallback
+    answer_lower = answer.strip().lower()
+    if (
+        "i do not know" in answer_lower
+        or "i don't know" in answer_lower
+        or answer_lower == "i do not know."
+        or answer_lower == "i don't know."
+    ):
+        print("⚠️  RAG returned 'I do not know' - trying general knowledge fallback")
+        answer = ask_groq_fallback(question, context=context)
+        print("🏁 INFERENCE END (fallback after RAG failure)")
+        print("=" * 80 + "\n")
+        return {"answer": answer, "hits": hits, "type": "fallback"}
+
     print(f"✅ Final answer: {answer[:100] if len(answer) > 100 else answer}...")
     print("🏁 INFERENCE END")
     print("=" * 80 + "\n")
 
-    return {"answer": answer, "hits": hits}
+    return {"answer": answer, "hits": hits, "type": "sourced"}
 
 
 def format_user_friendly_answer(
