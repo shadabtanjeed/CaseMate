@@ -108,6 +108,17 @@ class AuthNotifier extends StateNotifier<AuthState> {
   final ResetPasswordUseCase resetPasswordUseCase;
   final VerifyResetPinUseCase verifyResetPinUseCase;
   final AuthLocalDataSource localDataSource;
+  
+  Future<void> refreshCurrentUser() async {
+  try {
+    final user = await getCurrentUserUseCase(); // calls /auth/me
+    if (user != null) {
+      state = state.copyWith(user: user, isAuthenticated: true);
+    }
+  } catch (_) {
+    // ignore for view-only; you already have error handling elsewhere
+  }
+}
 
   AuthNotifier({
     required this.loginUseCase,

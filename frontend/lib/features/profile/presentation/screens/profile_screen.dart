@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../auth/presentation/screens/personal_details_screen.dart';
 
-class ProfileScreen extends StatelessWidget {
+
+class ProfileScreen extends ConsumerWidget {
   final VoidCallback onBack;
   final VoidCallback onLogout;
 
@@ -12,7 +16,10 @@ class ProfileScreen extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authProvider);
+    final user = authState.user;
+
     return Scaffold(
       body: Column(
         children: [
@@ -23,9 +30,9 @@ class ProfileScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildProfileCard(context),
+                  _buildProfileCard(context, ref),
                   const SizedBox(height: 24),
-                  _buildAccountInfo(context),
+                  _buildAccountInfo(context, user),
                   const SizedBox(height: 24),
                   _buildNotifications(context),
                   const SizedBox(height: 24),
@@ -76,7 +83,12 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildProfileCard(BuildContext context) {
+  Widget _buildProfileCard(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(authProvider).user;
+    final initials = _initialsFrom(user?.fullName ?? '');
+    final consultationCount = 12; // TODO: Get from backend
+    final savedLawyersCount = 3; // TODO: Get from backend
+
     return Transform.translate(
       offset: const Offset(0, -60),
       child: Card(
@@ -86,12 +98,12 @@ class ProfileScreen extends StatelessWidget {
             children: [
               Stack(
                 children: [
-                  const CircleAvatar(
+                  CircleAvatar(
                     radius: 48,
                     backgroundColor: AppTheme.primaryBlue,
                     child: Text(
-                      'JD',
-                      style: TextStyle(color: Colors.white, fontSize: 32),
+                      initials.isEmpty ? 'U' : initials,
+                      style: const TextStyle(color: Colors.white, fontSize: 32),
                     ),
                   ),
                   Positioned(
@@ -113,30 +125,30 @@ class ProfileScreen extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 16),
-              const Text(
-                'John Doe',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+              Text(
+                user?.fullName ?? 'User',
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
               ),
-              const Text(
-                'john.doe@example.com',
-                style: TextStyle(color: AppTheme.textSecondary),
+              Text(
+                user?.email ?? 'user@example.com',
+                style: const TextStyle(color: AppTheme.textSecondary),
               ),
               const SizedBox(height: 16),
               Row(
                 children: [
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       children: [
                         Text(
-                          '12',
-                          style: TextStyle(
+                          consultationCount.toString(),
+                          style: const TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.w600,
                             color: AppTheme.primaryBlue,
                           ),
                         ),
-                        SizedBox(height: 4),
-                        Text(
+                        const SizedBox(height: 4),
+                        const Text(
                           'Consultations',
                           style: TextStyle(
                             color: AppTheme.textSecondary,
@@ -147,19 +159,19 @@ class ProfileScreen extends StatelessWidget {
                     ),
                   ),
                   Container(width: 1, height: 40, color: AppTheme.borderColor),
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       children: [
                         Text(
-                          '3',
-                          style: TextStyle(
+                          savedLawyersCount.toString(),
+                          style: const TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.w600,
                             color: AppTheme.primaryBlue,
                           ),
                         ),
-                        SizedBox(height: 4),
-                        Text(
+                        const SizedBox(height: 4),
+                        const Text(
                           'Saved Lawyers',
                           style: TextStyle(
                             color: AppTheme.textSecondary,
@@ -178,7 +190,7 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildAccountInfo(BuildContext context) {
+  Widget _buildAccountInfo(BuildContext context, dynamic user) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -194,27 +206,39 @@ class ProfileScreen extends StatelessWidget {
           child: Column(
             children: [
               _buildListTile(
+                context,
                 Icons.person_outline,
                 'Personal Details',
                 'Update your information',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const PersonalDetailsScreen(),
+                    ),
+                  );
+                },
               ),
               const Divider(height: 1),
               _buildListTile(
+                context,
                 Icons.email_outlined,
                 'Email',
-                'john.doe@example.com',
+                user?.email ?? '—',
               ),
               const Divider(height: 1),
               _buildListTile(
+                context,
                 Icons.phone_outlined,
                 'Phone',
-                '+1 (555) 123-4567',
+                '+1 (555) 123-4567', // TODO: Add phone to user model
               ),
               const Divider(height: 1),
               _buildListTile(
+                context,
                 Icons.location_on_outlined,
                 'Location',
-                'New York, NY',
+                'New York, NY', // TODO: Add location to user model
               ),
             ],
           ),
@@ -273,9 +297,15 @@ class ProfileScreen extends StatelessWidget {
         Card(
           child: Column(
             children: [
-              _buildListTile(Icons.lock_outline, 'Change Password', null),
+              _buildListTile(
+                context,
+                Icons.lock_outline,
+                'Change Password',
+                null,
+              ),
               const Divider(height: 1),
               _buildListTile(
+                context,
                 Icons.privacy_tip_outlined,
                 'Privacy Policy',
                 null,
@@ -302,7 +332,12 @@ class ProfileScreen extends StatelessWidget {
         Card(
           child: Column(
             children: [
-              _buildListTile(Icons.help_outline, 'Help & Support', null),
+              _buildListTile(
+                context,
+                Icons.help_outline,
+                'Help & Support',
+                null,
+              ),
               const Divider(height: 1),
               ListTile(
                 leading: const Icon(Icons.logout, color: Colors.red),
@@ -320,7 +355,13 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildListTile(IconData icon, String title, String? subtitle) {
+  Widget _buildListTile(
+    BuildContext context,
+    IconData icon,
+    String title,
+    String? subtitle, {
+    VoidCallback? onTap,
+  }) {
     return ListTile(
       leading: Icon(icon, color: AppTheme.textSecondary),
       title: Text(title),
@@ -328,7 +369,7 @@ class ProfileScreen extends StatelessWidget {
           ? Text(subtitle, style: const TextStyle(fontSize: 12))
           : null,
       trailing: const Icon(Icons.chevron_right, color: AppTheme.textSecondary),
-      onTap: () {},
+      onTap: onTap ?? () {},
     );
   }
 
@@ -343,8 +384,18 @@ class ProfileScreen extends StatelessWidget {
       title: Text(title),
       subtitle: Text(subtitle, style: const TextStyle(fontSize: 12)),
       value: value,
-      onChanged: (val) {},
-      activeThumbColor: AppTheme.primaryBlue,
+      onChanged: (val) {
+        // TODO: Implement notification preferences
+      },
+      activeColor: AppTheme.primaryBlue,
     );
+  }
+
+  String _initialsFrom(String name) {
+    final parts =
+        name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+    if (parts.isEmpty) return '';
+    if (parts.length == 1) return parts.first[0].toUpperCase();
+    return (parts[0][0] + parts[1][0]).toUpperCase();
   }
 }

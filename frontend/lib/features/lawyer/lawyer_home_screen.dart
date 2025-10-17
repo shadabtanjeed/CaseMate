@@ -1,3 +1,5 @@
+// lawyer_home_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
@@ -136,14 +138,23 @@ class _LawyerHomeScreenState extends ConsumerState<LawyerHomeScreen> {
         children: [
           Row(
             children: [
-              const CircleAvatar(
+              CircleAvatar(
                 radius: 28,
                 backgroundColor: Colors.white,
-                child: Text('SJ',
-                    style: TextStyle(
+                child: Consumer(
+                  builder: (context, ref, _) {
+                    final user = ref.watch(authProvider).user;
+                    final initials = _initialsFrom(user?.fullName ?? '');
+                    return Text(
+                      initials.isEmpty ? 'U' : initials,
+                      style: const TextStyle(
                         color: AppTheme.primaryBlue,
                         fontSize: 20,
-                        fontWeight: FontWeight.w600)),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    );
+                  },
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -156,21 +167,33 @@ class _LawyerHomeScreenState extends ConsumerState<LawyerHomeScreen> {
                             color: Colors.white70,
                           ),
                     ),
-                    const Text(
-                      'Dr. Sarah Johnson',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const Text(
-                      'Criminal Law Specialist',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 14,
-                      ),
-                    ),
+                    Consumer(builder: (context, ref, _) {
+                      final user = ref.watch(authProvider).user;
+                      final name = (user?.fullName.isNotEmpty ?? false)
+                          ? user!.fullName
+                          : 'Lawyer';
+                      return Text(
+                        name,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      );
+                    }),
+                    Consumer(builder: (context, ref, _) {
+                      final user = ref.watch(authProvider).user;
+                      final spec = (user?.specialization ?? '').trim();
+                      if (spec.isEmpty) return const SizedBox.shrink();
+                      return Text(
+                        spec,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 14,
+                        ),
+                      );
+                    }),
                   ],
                 ),
               ),
@@ -282,8 +305,8 @@ class _LawyerHomeScreenState extends ConsumerState<LawyerHomeScreen> {
     );
   }
 
-  Widget _buildStatCard(IconData icon, String value, String label,
-      String? subtitle, Color color) {
+  Widget _buildStatCard(
+      IconData icon, String value, String label, String? subtitle, Color color) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -1125,4 +1148,12 @@ class _LawyerHomeScreenState extends ConsumerState<LawyerHomeScreen> {
       ),
     );
   }
+}
+
+String _initialsFrom(String name) {
+  final parts =
+      name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+  if (parts.isEmpty) return '';
+  if (parts.length == 1) return parts.first[0].toUpperCase();
+  return (parts[0][0] + parts[1][0]).toUpperCase();
 }
