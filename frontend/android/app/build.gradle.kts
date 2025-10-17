@@ -8,7 +8,8 @@ plugins {
 android {
     namespace = "com.example.casemate"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    // Use the Android NDK required by some native plugins (flutter_secure_storage, jitsi, etc.)
+    ndkVersion = "27.0.12077973"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
@@ -24,7 +25,9 @@ android {
         applicationId = "com.example.casemate"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+    // The embedded Jitsi native library requires minSdk 26. Bump to 26 to satisfy that.
+    // Note: this will make the app unavailable on older Android devices (SDK < 26).
+    minSdk = 26
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

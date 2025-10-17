@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/theme/app_theme.dart';
+import 'package:jitsi_meet_flutter_sdk/jitsi_meet_flutter_sdk.dart';
 
 class UserPovSessionsScreen extends ConsumerStatefulWidget {
   final VoidCallback? onBack;
@@ -67,6 +68,48 @@ class _UserPovSessionsScreenState extends ConsumerState<UserPovSessionsScreen>
         _error = e.toString();
         _isLoading = false;
       });
+    }
+  }
+
+  // Jitsi join helper - uses appointment_id as room name
+  Future<void> _joinJitsiMeeting(Map<String, dynamic> appt) async {
+    try {
+      final rawId = (appt['appointment_id'] ?? DateTime.now().millisecondsSinceEpoch).toString();
+      final room = 'casemate-$rawId'.replaceAll(RegExp(r"\s+"), '-');
+
+      // optional: pass user display name and email if available
+      final local = ref.read(authLocalDataSourceProvider);
+      String displayName = 'Client';
+      String email = '';
+      try {
+        final profile = await local.getUser();
+        if (profile != null) {
+          displayName = profile.fullName;
+          email = profile.email;
+        }
+      } catch (_) {}
+
+      // Use the JitsiMeet API from the installed package
+      final jitsi = JitsiMeet();
+      final options = JitsiMeetConferenceOptions(
+        room: room,
+        serverURL: 'https://meet.jit.si',
+        userInfo: JitsiMeetUserInfo(displayName: displayName, email: email),
+      );
+
+      // optional listener
+      final listener = JitsiMeetEventListener(
+        conferenceJoined: (url) {
+          // joined
+        },
+        conferenceTerminated: (url, error) {
+          // terminated
+        },
+      );
+
+      jitsi.join(options, listener);
+    } catch (err) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to join meeting: $err')));
     }
   }
 
@@ -297,14 +340,9 @@ class _UserPovSessionsScreenState extends ConsumerState<UserPovSessionsScreen>
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: const Text('Join Session (not implemented)'),
-                          behavior: SnackBarBehavior.floating,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
-                      );
+                    onPressed: () async {
+                      // start jitsi meeting for testing - no time constraint
+                      await _joinJitsiMeeting(a);
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.primaryBlue,
