@@ -63,12 +63,12 @@ class _LawyerDashboardScreenState extends State<LawyerDashboardScreen>
           bottomRight: Radius.circular(24),
         ),
       ),
-      child: Row(
+      child: const Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
+            children: [
               Text(
                 'Welcome Back',
                 style: TextStyle(
@@ -83,7 +83,7 @@ class _LawyerDashboardScreenState extends State<LawyerDashboardScreen>
               ),
             ],
           ),
-          const CircleAvatar(
+          CircleAvatar(
             radius: 24,
             backgroundColor: Colors.white,
             child: Text('SJ',

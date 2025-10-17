@@ -2,6 +2,7 @@ class LawyerEntity {
   final String id;
   final String name;
   final String specialization;
+  final String? email;
   final double rating;
   final int reviews;
   final int experience;
@@ -19,6 +20,7 @@ class LawyerEntity {
     required this.id,
     required this.name,
     required this.specialization,
+    this.email,
     required this.rating,
     required this.reviews,
     required this.experience,

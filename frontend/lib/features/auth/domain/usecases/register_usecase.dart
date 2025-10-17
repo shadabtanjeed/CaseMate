@@ -19,6 +19,7 @@ class RegisterUseCase {
     String? specialization,
     int? yearsOfExperience,
     String? bio,
+    double? consultationFee,
   }) {
     return repository.register(
       email: email,
@@ -33,6 +34,7 @@ class RegisterUseCase {
       specialization: specialization,
       yearsOfExperience: yearsOfExperience,
       bio: bio,
+      consultationFee: consultationFee,
     );
   }
 }

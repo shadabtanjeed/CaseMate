@@ -302,14 +302,13 @@ class _LawyerEarningsScreenState extends State<LawyerEarningsScreen> {
             const SizedBox(height: 4),
             Container(
               height: 140 * height,
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 gradient: LinearGradient(
                   colors: [AppTheme.primaryBlue, AppTheme.accentBlue],
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                 ),
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(4)),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(4)),
               ),
             ),
             const SizedBox(height: 8),

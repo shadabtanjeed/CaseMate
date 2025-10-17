@@ -27,7 +27,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     ChatMessage(
       isBot: true,
       message: '''
-Hello! I'm CaseMateBot, your AI legal assistant. How can I help you today?
+Hello! I'm LegalBot, your AI legal assistant. How can I help you today?
 
 **Please be aware that my responses are for informational purposes only and do not constitute legal advice. The app will not be liable for any actions taken based on my responses.**
 ''',
@@ -157,20 +157,20 @@ Hello! I'm CaseMateBot, your AI legal assistant. How can I help you today?
               itemCount: _messages.length + (_isLoading ? 1 : 0),
               itemBuilder: (context, index) {
                 if (_isLoading && index == _messages.length) {
-                  return Align(
+                  return const Align(
                     alignment: Alignment.centerLeft,
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8.0),
+                      padding: EdgeInsets.symmetric(vertical: 8.0),
                       child: Row(
                         children: [
-                          const CircleAvatar(
+                          CircleAvatar(
                             radius: 16,
                             backgroundColor: AppTheme.accentBlue,
                             child: Icon(Icons.smart_toy,
                                 size: 16, color: Colors.white),
                           ),
-                          const SizedBox(width: 8),
-                          const TypingIndicator(),
+                          SizedBox(width: 8),
+                          TypingIndicator(),
                         ],
                       ),
                     ),
@@ -241,7 +241,7 @@ Hello! I'm CaseMateBot, your AI legal assistant. How can I help you today?
               _messages.add(ChatMessage(
                 isBot: true,
                 message: '''
-Hello! I'm CaseMateBot, your AI legal assistant. How can I help you today?
+Hello! I'm LegalBot, your AI legal assistant. How can I help you today?
 
 **Please be aware that my responses are for informational purposes only and do not constitute legal advice. The app will not be liable for any actions taken based on my responses.**
 ''',
@@ -368,7 +368,7 @@ Hello! I'm CaseMateBot, your AI legal assistant. How can I help you today?
                       event.logicalKey == LogicalKeyboardKey.enter) {
                     // if shift is pressed, allow newline
                     if (event.isShiftPressed) {
-                      final newText = _messageController.text + '\n';
+                      final newText = '${_messageController.text}\n';
                       _messageController.text = newText;
                       _messageController.selection = TextSelection.fromPosition(
                           TextPosition(offset: newText.length));
@@ -477,7 +477,7 @@ class _TypingIndicatorState extends State<TypingIndicator>
                   child: Container(
                     width: 8,
                     height: 8,
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       color: AppTheme.primaryBlue,
                       shape: BoxShape.circle,
                     ),

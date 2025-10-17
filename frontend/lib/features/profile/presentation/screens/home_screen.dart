@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_theme.dart';
-
+import '../../../booking/presentation/providers/appointment_provider.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../lawyer/presentation/providers/lawyer_provider.dart';
 
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   final VoidCallback onNavigateToChatbot;
   final Function(String?) onNavigateToLawyers; // optional specialization
   final VoidCallback onNavigateToProfile;
@@ -20,8 +22,29 @@ class HomeScreen extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
 
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Refresh appointments when screen is shown
+    _refreshAppointments();
+  }
+
+  void _refreshAppointments() {
+    final authState = ref.read(authProvider);
+    final userEmail = authState.user?.email;
+
+    if (userEmail != null && userEmail.isNotEmpty) {
+      final refresh = ref.read(refreshUserAppointmentsProvider(userEmail));
+      refresh();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.background,
       body: SafeArea(
@@ -102,7 +125,7 @@ class HomeScreen extends ConsumerWidget {
               Stack(
                 children: [
                   IconButton(
-                    onPressed: onNavigateToNotifications,
+                    onPressed: widget.onNavigateToNotifications,
                     icon: const Icon(
                       Icons.notifications_outlined,
                       color: Colors.white,
@@ -133,7 +156,8 @@ class HomeScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 16),
           TextField(
-            // search input
+            onTap: widget.onNavigateToLawyers,
+            readOnly: true,
             decoration: InputDecoration(
               prefixIcon: const Icon(Icons.search),
               filled: true,
@@ -160,7 +184,7 @@ class HomeScreen extends ConsumerWidget {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: onNavigateToChatbot,
+              onPressed: widget.onNavigateToChatbot,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white,
                 foregroundColor: AppTheme.primaryBlue,
@@ -179,28 +203,38 @@ class HomeScreen extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Find Lawyers by Category',
-          style: Theme.of(context).textTheme.titleLarge,
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Find Lawyers by Category',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            TextButton(
+              onPressed: widget.onNavigateToLawyers,
+              child: const Text('View All'),
+            ),
+          ],
         ),
         const SizedBox(height: 16),
-        specAsync.when(
-          data: (specs) {
-            if (specs.isEmpty) return const Center(child: Text('No categories'));
-            return GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                childAspectRatio: 0.9,
-              ),
-              itemCount: specs.length,
-              itemBuilder: (context, index) {
-                final label = specs[index];
-                return InkWell(
-                  onTap: () => onNavigateToLawyers(label),
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 0.9,
+          ),
+          itemCount: categories.length,
+          itemBuilder: (context, index) {
+            final category = categories[index];
+            return InkWell(
+              onTap: widget.onNavigateToLawyers,
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
                   child: Container(
                     decoration: BoxDecoration(
@@ -272,50 +306,198 @@ class HomeScreen extends ConsumerWidget {
   }
 
   Widget _buildUpcomingConsultations(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
+    // Get current user email from auth provider
+    final authState = ref.watch(authProvider);
+    final userEmail = authState.user?.email;
+
+    if (userEmail == null || userEmail.isEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'Upcoming Consultations',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(width: 8),
+              const Icon(
+                Icons.calendar_today,
+                size: 20,
+                color: AppTheme.textSecondary,
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          const Text('Not logged in'),
+        ],
+      );
+    }
+
+    // Fetch user appointments
+    final appointmentsAsync = ref.watch(userAppointmentsProvider(userEmail));
+
+    return appointmentsAsync.when(
+      loading: () => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'Upcoming Consultations',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(width: 8),
+              const Icon(
+                Icons.calendar_today,
+                size: 20,
+                color: AppTheme.textSecondary,
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          const Center(child: CircularProgressIndicator()),
+        ],
+      ),
+      error: (error, stack) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'Upcoming Consultations',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(width: 8),
+              const Icon(
+                Icons.calendar_today,
+                size: 20,
+                color: AppTheme.textSecondary,
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          const Text('Error loading consultations'),
+        ],
+      ),
+      data: (appointments) {
+        if (appointments.isEmpty) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    'Upcoming Consultations',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(width: 8),
+                  const Icon(
+                    Icons.calendar_today,
+                    size: 20,
+                    color: AppTheme.textSecondary,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'No upcoming consultations',
+                style: TextStyle(color: AppTheme.textSecondary),
+              ),
+            ],
+          );
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Upcoming Consultations',
-              style: Theme.of(context).textTheme.titleLarge,
+            Row(
+              children: [
+                Text(
+                  'Upcoming Consultations',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(width: 8),
+                const Icon(
+                  Icons.calendar_today,
+                  size: 20,
+                  color: AppTheme.textSecondary,
+                ),
+              ],
             ),
-            const SizedBox(width: 8),
-            const Icon(
-              Icons.calendar_today,
-              size: 20,
-              color: AppTheme.textSecondary,
-            ),
+            const SizedBox(height: 16),
+            ...appointments.asMap().entries.map((entry) {
+              final index = entry.key;
+              final appointment = entry.value as Map<String, dynamic>;
+
+              if (index > 0) {
+                return Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: _buildConsultationCard(appointment),
+                );
+              }
+              return _buildConsultationCard(appointment);
+            }).toList(),
           ],
-        ),
-        const SizedBox(height: 16),
-        _buildConsultationCard(
-          'Dr. Sarah Johnson',
-          'Criminal Law',
-          'Oct 12, 2025',
-          '10:00 AM',
-          'Video Call',
-        ),
-        const SizedBox(height: 12),
-        _buildConsultationCard(
-          'Mr. Michael Chen',
-          'Property Law',
-          'Oct 14, 2025',
-          '2:30 PM',
-          'Chat',
-        ),
-      ],
+        );
+      },
     );
   }
 
-  Widget _buildConsultationCard(
-    String lawyer,
-    String specialization,
-    String date,
-    String time,
-    String type,
-  ) {
+  Widget _buildConsultationCard(Map<String, dynamic> appointment) {
+    // Extract appointment data
+    final lawyerEmail = appointment['lawyer_email'] ?? 'Unknown';
+    final lawyerFullName = appointment['lawyer_full_name'] ??
+        lawyerEmail.split('@').first; // Fallback to email name if not available
+    final caseType = appointment['case_type'] ?? 'Legal Consultation';
+    final consultationType = appointment['consultation_type'] ?? 'Scheduled';
+    final date = appointment['date'] ?? '';
+    final startTime = appointment['start_time'] ?? '';
+    final endTime = appointment['end_time'] ?? '';
+
+    // Format lawyer name properly (capitalize first letter of each word)
+    String lawyerName = lawyerFullName;
+    if (lawyerName.contains('_')) {
+      lawyerName = lawyerName
+          .replaceAll('_', ' ')
+          .split(' ')
+          .map((word) => word.isNotEmpty
+              ? word[0].toUpperCase() + word.substring(1).toLowerCase()
+              : '')
+          .join(' ');
+    }
+
+    // Format date if it's a string (ISO format)
+    String formattedDate = date;
+    try {
+      if (date is String && date.isNotEmpty) {
+        final parsedDate = DateTime.parse(date);
+        formattedDate =
+            '${_monthName(parsedDate.month)} ${parsedDate.day}, ${parsedDate.year}';
+      }
+    } catch (e) {
+      formattedDate = date.toString();
+    }
+
+    // Format start and end times with AM/PM
+    String formattedTimeRange = '$startTime - $endTime';
+    try {
+      if (startTime.isNotEmpty && endTime.isNotEmpty) {
+        final startTimeParsed = _parseTime(startTime);
+        final endTimeParsed = _parseTime(endTime);
+        formattedTimeRange = '$startTimeParsed - $endTimeParsed';
+      }
+    } catch (e) {
+      formattedTimeRange = '$startTime - $endTime';
+    }
+
+    // Format consultation type nicely
+    String displayConsultationType = consultationType;
+    if (consultationType.isNotEmpty) {
+      displayConsultationType = consultationType[0].toUpperCase() +
+          consultationType.substring(1).toLowerCase();
+    }
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -331,7 +513,10 @@ class HomeScreen extends ConsumerWidget {
                 radius: 24,
                 backgroundColor: AppTheme.accentBlue,
                 child: Text(
-                  lawyer.split(' ').map((e) => e[0]).join(),
+                  lawyerName
+                      .split(' ')
+                      .map((e) => e.isNotEmpty ? e[0].toUpperCase() : '')
+                      .join(),
                   style: const TextStyle(color: Colors.white),
                 ),
               ),
@@ -341,7 +526,7 @@ class HomeScreen extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      lawyer,
+                      lawyerName,
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -349,7 +534,7 @@ class HomeScreen extends ConsumerWidget {
                       ),
                     ),
                     Text(
-                      specialization,
+                      caseType,
                       style: const TextStyle(
                         fontSize: 14,
                         color: AppTheme.textSecondary,
@@ -360,16 +545,31 @@ class HomeScreen extends ConsumerWidget {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(
-                '$date • $time',
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: AppTheme.textSecondary,
-                ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    formattedDate,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    formattedTimeRange,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                ],
               ),
               Container(
                 padding: const EdgeInsets.symmetric(
@@ -381,7 +581,7 @@ class HomeScreen extends ConsumerWidget {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  type,
+                  displayConsultationType,
                   style: const TextStyle(
                     fontSize: 12,
                     color: AppTheme.primaryBlue,
@@ -413,7 +613,7 @@ class HomeScreen extends ConsumerWidget {
                 Icons.balance,
                 'Lawyers',
                 false,
-                () => onNavigateToLawyers(null),
+                widget.onNavigateToLawyers,
               ),
               _buildFloatingChatButton(),
               _buildNavItem(Icons.calendar_today, 'Sessions', false, () {}),
@@ -421,7 +621,7 @@ class HomeScreen extends ConsumerWidget {
                 Icons.person_outline,
                 'Profile',
                 false,
-                onNavigateToProfile,
+                widget.onNavigateToProfile,
               ),
             ],
           ),
@@ -462,10 +662,46 @@ class HomeScreen extends ConsumerWidget {
     return Transform.translate(
       offset: const Offset(0, -20),
       child: FloatingActionButton(
-        onPressed: onNavigateToChatbot,
+        onPressed: widget.onNavigateToChatbot,
         backgroundColor: AppTheme.primaryBlue,
         child: const Icon(Icons.chat_bubble_outline, color: Colors.white),
       ),
     );
+  }
+
+  String _parseTime(String timeStr) {
+    try {
+      // Parse time string in HH:mm format
+      final parts = timeStr.split(':');
+      if (parts.length != 2) return timeStr;
+
+      final hour = int.parse(parts[0]);
+      final minute = int.parse(parts[1]);
+
+      final isAM = hour < 12;
+      final displayHour = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+
+      return '$displayHour:${minute.toString().padLeft(2, '0')} ${isAM ? 'AM' : 'PM'}';
+    } catch (e) {
+      return timeStr;
+    }
+  }
+
+  String _monthName(int month) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
+    ];
+    return months[month - 1];
   }
 }

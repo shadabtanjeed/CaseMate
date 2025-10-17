@@ -43,6 +43,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
   final _lawyerLocationController = TextEditingController();
   final _educationController = TextEditingController();
   final _achievementsController = TextEditingController();
+  final _consultationFeeController = TextEditingController();
 
   @override
   void initState() {
@@ -65,10 +66,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
     _specializationController.dispose();
     _experienceController.dispose();
     _bioController.dispose();
-  _lawyerPhoneController.dispose();
+    _lawyerPhoneController.dispose();
     _lawyerLocationController.dispose();
     _educationController.dispose();
     _achievementsController.dispose();
+    _consultationFeeController.dispose();
     super.dispose();
   }
 
@@ -89,17 +91,24 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
               ? _userNameController.text.trim()
               : _lawyerNameController.text.trim(),
           role: isUserTab ? 'user' : 'lawyer',
-      phone: isUserTab ? _userPhoneController.text.trim() : _lawyerPhoneController.text.trim(),
-    location: isUserTab ? _userLocationController.text.trim() : _lawyerLocationController.text.trim(),
+          phone: isUserTab
+              ? _userPhoneController.text.trim()
+              : _lawyerPhoneController.text.trim(),
+          location: isUserTab
+              ? _userLocationController.text.trim()
+              : _lawyerLocationController.text.trim(),
           licenseId: isUserTab ? null : _licenseIdController.text.trim(),
           specialization:
               isUserTab ? null : _specializationController.text.trim(),
           yearsOfExperience: isUserTab
               ? null
               : int.tryParse(_experienceController.text.trim()),
-      bio: isUserTab ? null : _bioController.text.trim(),
-      education: isUserTab ? null : _educationController.text.trim(),
-      achievements: isUserTab ? null : _achievementsController.text.trim(),
+          bio: isUserTab ? null : _bioController.text.trim(),
+          education: isUserTab ? null : _educationController.text.trim(),
+          achievements: isUserTab ? null : _achievementsController.text.trim(),
+          consultationFee: isUserTab
+              ? null
+              : double.tryParse(_consultationFeeController.text.trim()),
         );
 
     if (success && mounted) {
@@ -407,21 +416,21 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                 return null;
               },
             ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _lawyerPhoneController,
-                keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(
-                  labelText: 'Phone Number',
-                  prefixIcon: Icon(Icons.phone_outlined),
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter your phone number';
-                  }
-                  return null;
-                },
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _lawyerPhoneController,
+              keyboardType: TextInputType.phone,
+              decoration: const InputDecoration(
+                labelText: 'Phone Number',
+                prefixIcon: Icon(Icons.phone_outlined),
               ),
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Please enter your phone number';
+                }
+                return null;
+              },
+            ),
             const SizedBox(height: 16),
             TextFormField(
               controller: _lawyerLocationController,
@@ -429,6 +438,35 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                 labelText: 'Location',
                 prefixIcon: Icon(Icons.location_on_outlined),
               ),
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Please enter your location';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _consultationFeeController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Consultation Fee (per hour)',
+                prefixIcon: Icon(Icons.attach_money),
+                hintText: 'e.g. 50.00',
+              ),
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Please enter your consultation fee';
+                }
+                if (double.tryParse(value) == null) {
+                  return 'Please enter a valid amount';
+                }
+                final fee = double.parse(value);
+                if (fee <= 0) {
+                  return 'Fee must be greater than 0';
+                }
+                return null;
+              },
             ),
             const SizedBox(height: 16),
             TextFormField(

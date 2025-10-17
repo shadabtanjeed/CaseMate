@@ -5,6 +5,7 @@ class LawyerModel extends LawyerEntity {
     required super.id,
     required super.name,
     required super.specialization,
+    super.email,
     required super.rating,
     required super.reviews,
     required super.experience,
@@ -34,14 +35,21 @@ class LawyerModel extends LawyerEntity {
     }
 
     return LawyerModel(
-  id: parseId(json['id']),
+      id: parseId(json['id']),
       name: json['name'] ?? '',
       specialization: json['specialization'] ?? '',
+      email: json['email'],
       rating: parseRating(json['rating']),
-      reviews: (json['reviews'] is int) ? json['reviews'] as int : (int.tryParse(json['reviews']?.toString() ?? '') ?? 0),
-      experience: (json['experience'] is int) ? json['experience'] as int : (int.tryParse(json['experience']?.toString() ?? '') ?? 0),
+      reviews: (json['reviews'] is int)
+          ? json['reviews'] as int
+          : (int.tryParse(json['reviews']?.toString() ?? '') ?? 0),
+      experience: (json['experience'] is int)
+          ? json['experience'] as int
+          : (int.tryParse(json['experience']?.toString() ?? '') ?? 0),
       location: json['location'] ?? '',
-      fee: (json['fee'] is int) ? json['fee'] as int : (int.tryParse(json['fee']?.toString() ?? '') ?? 0),
+      fee: (json['fee'] is int)
+          ? json['fee'] as int
+          : (int.tryParse(json['fee']?.toString() ?? '') ?? 0),
       image: json['image'] ?? '',
       verified: json['verified'] ?? false,
       bio: json['bio'] ?? '',
@@ -69,6 +77,7 @@ class LawyerModel extends LawyerEntity {
       'achievements': achievements,
       'languages': languages,
       'barAdmissions': barAdmissions,
+      'email': email,
     };
   }
 }

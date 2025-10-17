@@ -10,13 +10,14 @@ import 'features/profile/presentation/screens/home_screen.dart';
 import 'features/chat/presentation/screens/chatbot_screen.dart';
 import 'features/lawyer/presentation/screens/lawyer_discovery_screen.dart';
 import 'features/lawyer/presentation/screens/lawyer_detail_screen.dart';
-import 'features/booking/presentation/screens/booking_screen.dart';
 import 'features/video_call/presentation/screens/video_call_screen.dart';
 import 'features/profile/presentation/screens/profile_screen.dart';
 import 'features/notifications/presentation/screens/notifications_screen.dart';
 import 'features/lawyer/lawyer_home_screen.dart';
 import 'features/lawyer/lawyer_clients_screen.dart';
 import 'features/lawyer/lawyer_schedule_screen.dart';
+import 'features/auth/data/datasources/auth_local_datasources.dart';
+import 'features/auth/data/models/user_model.dart';
 import 'features/lawyer/lawyer_cases_screen.dart';
 import 'features/lawyer/lawyer_reviews_screen.dart';
 import 'features/lawyer/lawyer_earnings_screen.dart';
@@ -59,6 +60,7 @@ class AppNavigator extends StatefulWidget {
 class _AppNavigatorState extends State<AppNavigator> {
   String _currentScreen = 'splash';
   String _selectedLawyerId = '';
+  bool _openAvailabilityTab = false;
   String? _selectedSpecialization;
 
   void _navigateTo(String screen) {
@@ -103,14 +105,16 @@ class _AppNavigatorState extends State<AppNavigator> {
     setState(() {
       _selectedLawyerId = lawyerId;
       _currentScreen = 'lawyer-detail';
+      _openAvailabilityTab = false;
     });
   }
 
-  void _handleBookingConfirm() {
+  void _handleBookNowLawyer(String lawyerId) {
     setState(() {
-      _currentScreen = 'home';
+      _selectedLawyerId = lawyerId;
+      _currentScreen = 'lawyer-detail';
+      _openAvailabilityTab = true;
     });
-    _showSnackbar('Booking confirmed successfully!');
   }
 
   void _handleEndCall() {
@@ -168,20 +172,19 @@ class _AppNavigatorState extends State<AppNavigator> {
         return LawyerDiscoveryScreen(
           onBack: () => _navigateTo('home'),
           onSelectLawyer: _handleSelectLawyer,
+          onBookNowLawyer: _handleBookNowLawyer,
           initialSpecialization: _selectedSpecialization,
         );
 
       case 'lawyer-detail':
         return LawyerDetailScreen(
           lawyerId: _selectedLawyerId,
-          onBack: () => _navigateTo('lawyers'),
+          onBack: () {
+            _openAvailabilityTab = false;
+            _navigateTo('lawyers');
+          },
           onBookConsultation: () => _navigateTo('booking'),
-        );
-
-      case 'booking':
-        return BookingScreen(
-          onBack: () => _navigateTo('lawyer-detail'),
-          onConfirm: _handleBookingConfirm,
+          initialTabIndex: _openAvailabilityTab ? 2 : 0,
         );
 
       case 'video-call':
@@ -208,7 +211,20 @@ class _AppNavigatorState extends State<AppNavigator> {
         return LawyerClientsScreen(onBack: () => _navigateTo('lawyer-home'));
 
       case 'lawyer-schedule':
-        return LawyerScheduleScreen(onBack: () => _navigateTo('lawyer-home'));
+        return FutureBuilder<UserModel?>(
+          future: AuthLocalDataSourceImpl().getUser(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState != ConnectionState.done) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            final user = snapshot.data;
+            final email = user?.email ?? '';
+            return LawyerScheduleScreen(
+              onBack: () => _navigateTo('lawyer-home'),
+              currentLawyerEmail: email,
+            );
+          },
+        );
 
       case 'lawyer-cases':
         return LawyerCasesScreen(onBack: () => _navigateTo('lawyer-home'));
@@ -261,11 +277,11 @@ class _AppNavigatorState extends State<AppNavigator> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
+                const Row(
                   children: [
-                    const Icon(Icons.navigation, color: AppTheme.primaryBlue),
-                    const SizedBox(width: 8),
-                    const Text(
+                    Icon(Icons.navigation, color: AppTheme.primaryBlue),
+                    SizedBox(width: 8),
+                    Text(
                       'Navigate to Screen',
                       style:
                           TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
