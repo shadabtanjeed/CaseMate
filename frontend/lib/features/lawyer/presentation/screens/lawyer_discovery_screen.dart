@@ -43,12 +43,13 @@ class _LawyerDiscoveryScreenState extends ConsumerState<LawyerDiscoveryScreen> {
           );
     });
   }
-  
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     // Persist the incoming specialization so later filter actions include it
-    if (widget.initialSpecialization != null && _selectedSpecialization == null) {
+    if (widget.initialSpecialization != null &&
+        _selectedSpecialization == null) {
       setState(() {
         _selectedSpecialization = widget.initialSpecialization;
         // Optionally prefill the search field to show the active filter
@@ -344,11 +345,12 @@ class _LawyerDiscoveryScreenState extends ConsumerState<LawyerDiscoveryScreen> {
                   decoration: const InputDecoration(
                     border: OutlineInputBorder(),
                   ),
-                  value: _selectedSpecialization,
+                  initialValue: _selectedSpecialization,
                   items: specs
                       .map((s) => DropdownMenuItem(value: s, child: Text(s)))
                       .toList(),
-                  onChanged: (value) => setState(() => _selectedSpecialization = value),
+                  onChanged: (value) =>
+                      setState(() => _selectedSpecialization = value),
                 );
               },
               loading: () => const SizedBox(

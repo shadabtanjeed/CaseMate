@@ -810,7 +810,7 @@ class _LawyerHomeScreenState extends ConsumerState<LawyerHomeScreen> {
                 context,
                 appointment,
               );
-            }).toList(),
+            }),
           ],
         );
       },

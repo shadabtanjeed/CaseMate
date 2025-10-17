@@ -50,7 +50,7 @@ class _LawyerScheduleScreenState extends State<LawyerScheduleScreen>
 
   // Appointments tab state
   late DateTime _weekStartDate;
-  Map<String, List<Map<String, dynamic>>> _appointmentsByDate = {};
+  final Map<String, List<Map<String, dynamic>>> _appointmentsByDate = {};
   DateTime? _selectedDate;
   bool _appointmentsLoading = false;
 
@@ -431,7 +431,7 @@ class _LawyerScheduleScreenState extends State<LawyerScheduleScreen>
               Icon(Icons.event_available,
                   size: 32, color: AppTheme.accentBlue.withOpacity(0.6)),
               const SizedBox(height: 12),
-              Text(
+              const Text(
                 'No appointments scheduled for this day',
                 style: TextStyle(
                   color: AppTheme.textSecondary,
@@ -445,7 +445,7 @@ class _LawyerScheduleScreenState extends State<LawyerScheduleScreen>
         ...appointments.asMap().entries.map((entry) {
           final appointment = entry.value;
           return _buildAppointmentCardFromData(appointment);
-        }).toList(),
+        }),
     ];
   }
 
@@ -613,7 +613,7 @@ class _LawyerScheduleScreenState extends State<LawyerScheduleScreen>
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                '${_getMonthYear(_weekStartDate)}',
+                _getMonthYear(_weekStartDate),
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,

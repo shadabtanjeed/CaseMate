@@ -171,7 +171,9 @@ def build_sources_block(hits: List[Dict], max_chars: int = 2000) -> str:
     return "\n\n".join(blocks)
 
 
-def ask_groq(question: str, sources: str, model: str = GROQ_MODEL):
+def ask_groq(
+    question: str, sources: str, context: Optional[str] = None, model: str = GROQ_MODEL
+):
     system = (
         "You are an assistant that MUST answer questions using ONLY the provided SOURCES. "
         "If the answer is not explicit, but can be deduced using legal reasoning based on the principles in the sources, then do so. But mention that you are using reasoning. "
@@ -179,12 +181,26 @@ def ask_groq(question: str, sources: str, model: str = GROQ_MODEL):
         "When you provide facts, cite the source label(s) you used in brackets e.g. [SOURCE 1]. Start source labels at [SOURCE 1]. "
         "Include source metadata (law title, section name, section id, passing date) when referencing a source."
     )
-    user_prompt = (
-        f"QUESTION:\n{question}\n\nSOURCES:\n{sources}\n\n"
-        "INSTRUCTIONS:\nAnswer the question ONLY using the information in the SOURCES. Provide a concise answer. Cite sources after the answer in list format."
-        "If sources disagree, summarize the disagreement and cite the conflicting sources."
-        "Provide the response in markdown format."
-    )
+
+    # Build user prompt with optional context
+    if context and context.strip():
+        user_prompt = (
+            f"CONVERSATION CONTEXT (for reference):\n{context}\n\n"
+            f"CURRENT QUESTION:\n{question}\n\n"
+            f"SOURCES:\n{sources}\n\n"
+            "INSTRUCTIONS:\nAnswer the CURRENT QUESTION using ONLY the information in the SOURCES. "
+            "Use the conversation context to understand the question better, but do NOT use context as factual information. "
+            "Provide a concise answer. Cite sources after the answer in list format. "
+            "If sources disagree, summarize the disagreement and cite the conflicting sources. "
+            "Provide the response in markdown format."
+        )
+    else:
+        user_prompt = (
+            f"QUESTION:\n{question}\n\nSOURCES:\n{sources}\n\n"
+            "INSTRUCTIONS:\nAnswer the question ONLY using the information in the SOURCES. Provide a concise answer. Cite sources after the answer in list format. "
+            "If sources disagree, summarize the disagreement and cite the conflicting sources. "
+            "Provide the response in markdown format."
+        )
     # guard if Groq client not configured
     if client is None:
         print("⚠️  Groq client not configured (groq_api_key missing)")
@@ -212,11 +228,19 @@ def ask_groq(question: str, sources: str, model: str = GROQ_MODEL):
         return "I do not know"
 
 
-def run_inference(question: str, top_k: int = 6, score_threshold: float = 0.5):
+def run_inference(
+    question: str,
+    context: Optional[str] = None,
+    top_k: int = 6,
+    score_threshold: float = 0.15,
+):
     print("\n" + "=" * 80)
     print(f"🚀 INFERENCE START - Question: {question}")
+    if context:
+        print(f"📝 Context provided: {context[:200]}...")
     print(f"⚙️  Parameters: top_k={top_k}, score_threshold={score_threshold:.4f}")
 
+    # Use ONLY the question for retrieval (not context)
     hits = retrieve_hits(question, top_k=top_k)
     print(f"📊 Retrieved {len(hits)} raw hits before threshold filtering")
 
@@ -240,7 +264,7 @@ def run_inference(question: str, top_k: int = 6, score_threshold: float = 0.5):
     sources = build_sources_block(hits)
     print(f"✓ Sources block length: {len(sources)} chars")
 
-    answer = ask_groq(question, sources)
+    answer = ask_groq(question, sources, context=context)
     print(f"✅ Final answer: {answer[:100] if len(answer) > 100 else answer}...")
     print("🏁 INFERENCE END")
     print("=" * 80 + "\n")

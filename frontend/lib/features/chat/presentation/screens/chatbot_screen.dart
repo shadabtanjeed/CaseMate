@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../data/chatbot_api_service.dart';
+import '../../data/chat_history_service.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 
 class ChatbotScreen extends StatefulWidget {
@@ -23,19 +24,10 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   final FocusNode _textFocusNode = FocusNode();
   final ScrollController _scrollController = ScrollController();
 
-  final List<ChatMessage> _messages = [
-    ChatMessage(
-      isBot: true,
-      message: '''
-Hello! I'm LegalBot, your AI legal assistant. How can I help you today?
-
-**Please be aware that my responses are for informational purposes only and do not constitute legal advice. The app will not be liable for any actions taken based on my responses.**
-''',
-      timestamp: DateTime.now(),
-    ),
-  ];
+  final List<ChatMessage> _messages = [];
   String _mode = 'general';
   final ChatbotApiService _apiService = ChatbotApiService();
+  final ChatHistoryService _historyService = ChatHistoryService();
   bool _isLoading = false;
 
   @override
@@ -49,8 +41,106 @@ Hello! I'm LegalBot, your AI legal assistant. How can I help you today?
   @override
   void initState() {
     super.initState();
+    _loadChatHistory();
     // ensure initial content is visible at bottom
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+  }
+
+  Future<void> _loadChatHistory() async {
+    final history = await _historyService.getChatHistory(_mode);
+
+    if (history.isEmpty) {
+      // Show initial welcome message
+      setState(() {
+        _messages.clear();
+        _messages.add(ChatMessage(
+          isBot: true,
+          message: '''
+Hello! I'm LegalBot, your AI legal assistant. How can I help you today?
+
+**Please be aware that my responses are for informational purposes only and do not constitute legal advice. The app will not be liable for any actions taken based on my responses.**
+''',
+          timestamp: DateTime.now(),
+        ));
+      });
+    } else {
+      // Load all messages from history
+      final loadedMessages = history.map((msg) {
+        return ChatMessage(
+          isBot: msg['isBot'] ?? false,
+          message: msg['message'] ?? '',
+          timestamp: DateTime.parse(
+              msg['timestamp'] ?? DateTime.now().toIso8601String()),
+        );
+      }).toList();
+
+      setState(() {
+        _messages.clear();
+        _messages.addAll(loadedMessages);
+      });
+    }
+
+    _scrollToBottom();
+  }
+
+  void _showClearHistoryDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Clear Chat History'),
+        content: const Text(
+          'Are you sure you want to delete all conversations? This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              _clearAllChatHistory();
+              Navigator.pop(context);
+            },
+            child: const Text(
+              'Delete All',
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _clearAllChatHistory() async {
+    // Clear history for both modes
+    await _historyService.clearChatHistory('general');
+    await _historyService.clearChatHistory('case');
+
+    // Reset UI
+    setState(() {
+      _messages.clear();
+      _messages.add(ChatMessage(
+        isBot: true,
+        message: '''
+Hello! I'm LegalBot, your AI legal assistant. How can I help you today?
+
+**Please be aware that my responses are for informational purposes only and do not constitute legal advice. The app will not be liable for any actions taken based on my responses.**
+''',
+        timestamp: DateTime.now(),
+      ));
+    });
+
+    _scrollToBottom();
+
+    // Show confirmation
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Chat history cleared successfully'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
   void _scrollToBottom() {
@@ -81,27 +171,62 @@ Hello! I'm LegalBot, your AI legal assistant. How can I help you today?
       ));
       _isLoading = true;
     });
+
+    // Save user message to history
+    await _historyService.saveChatMessage(
+      message: text,
+      isBot: false,
+      mode: _mode,
+    );
+
     _scrollToBottom();
     _messageController.clear();
 
     try {
-      final String answer = await _apiService.getChatbotAnswer(text);
+      // Get smart context that detects topic shifts
+      final contextPrompt =
+          await _historyService.getSmartContextPrompt(_mode, text);
+
+      final String answer = await _apiService.getChatbotAnswer(
+        text,
+        contextPrompt: contextPrompt,
+      );
+
+      final botMessage = (answer.isNotEmpty) ? answer : 'I do not know';
+
       setState(() {
         _messages.add(ChatMessage(
           isBot: true,
-          message: (answer.isNotEmpty) ? answer : 'I do not know',
+          message: botMessage,
           timestamp: DateTime.now(),
         ));
       });
+
+      // Save bot message to history
+      await _historyService.saveChatMessage(
+        message: botMessage,
+        isBot: true,
+        mode: _mode,
+      );
+
       _scrollToBottom();
     } catch (e) {
+      final errorMessage = 'Sorry, failed to get a response from the server.';
       setState(() {
         _messages.add(ChatMessage(
           isBot: true,
-          message: 'Sorry, failed to get a response from the server.',
+          message: errorMessage,
           timestamp: DateTime.now(),
         ));
       });
+
+      // Save error message to history
+      await _historyService.saveChatMessage(
+        message: errorMessage,
+        isBot: true,
+        mode: _mode,
+      );
+
       _scrollToBottom();
     } finally {
       setState(() {
@@ -137,6 +262,13 @@ Hello! I'm LegalBot, your AI legal assistant. How can I help you today?
             ),
           ],
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete_outline),
+            tooltip: 'Clear chat history',
+            onPressed: _showClearHistoryDialog,
+          ),
+        ],
         flexibleSpace: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
@@ -223,34 +355,9 @@ Hello! I'm LegalBot, your AI legal assistant. How can I help you today?
       onPressed: () {
         setState(() {
           _mode = mode;
-          // When entering case analysis, show a coming-soon message and disable input
-          if (_mode == 'case') {
-            _messages.clear();
-            _messages.add(ChatMessage(
-              isBot: true,
-              message:
-                  'Case analysis is coming soon. This feature will be available in a future release.',
-              timestamp: DateTime.now(),
-            ));
-          } else {
-            // On switching back to general, ensure the friendly welcome message exists
-            if (_messages.isEmpty ||
-                (_messages.length == 1 &&
-                    _messages[0].message.contains('coming soon'))) {
-              _messages.clear();
-              _messages.add(ChatMessage(
-                isBot: true,
-                message: '''
-Hello! I'm LegalBot, your AI legal assistant. How can I help you today?
-
-**Please be aware that my responses are for informational purposes only and do not constitute legal advice. The app will not be liable for any actions taken based on my responses.**
-''',
-                timestamp: DateTime.now(),
-              ));
-            }
-          }
         });
-        _scrollToBottom();
+        // Load history for the new mode
+        _loadChatHistory();
       },
       style: ElevatedButton.styleFrom(
         backgroundColor:

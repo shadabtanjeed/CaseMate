@@ -439,7 +439,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 );
               }
               return _buildConsultationCard(appointment);
-            }).toList(),
+            }),
           ],
         );
       },
