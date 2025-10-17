@@ -48,11 +48,23 @@ class _LawyerScheduleScreenState extends State<LawyerScheduleScreen>
 
   bool _isLoading = true;
 
+  // Appointments tab state
+  late DateTime _weekStartDate;
+  Map<String, List<Map<String, dynamic>>> _appointmentsByDate = {};
+  DateTime? _selectedDate;
+  bool _appointmentsLoading = false;
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _loadScheduleFromBackend();
+
+    // Initialize week calendar for appointments tab
+    _weekStartDate = _getMonday(DateTime.now());
+    _selectedDate = DateTime.now();
+    _loadAppointmentsForWeek(_weekStartDate);
+
     // refresh UI on tab change so FAB visibility updates
     _tabController.addListener(() {
       if (mounted) setState(() {});
@@ -105,7 +117,6 @@ class _LawyerScheduleScreenState extends State<LawyerScheduleScreen>
       }
     } catch (e) {
       // 404 or other error - keep all weekdays unselected
-      print('No schedule found or error loading: $e');
     } finally {
       setState(() {
         _isLoading = false;
@@ -119,6 +130,59 @@ class _LawyerScheduleScreenState extends State<LawyerScheduleScreen>
     _hideFabTimer?.cancel();
     _tabController.dispose();
     super.dispose();
+  }
+
+  DateTime _getMonday(DateTime date) {
+    return date.subtract(Duration(days: date.weekday - 1));
+  }
+
+  Future<void> _loadAppointmentsForWeek(DateTime weekStart) async {
+    if (!mounted) return;
+    setState(() => _appointmentsLoading = true);
+
+    try {
+      _appointmentsByDate.clear();
+
+      // Load appointments for each day of the week
+      for (int i = 0; i < 7; i++) {
+        final date = weekStart.add(Duration(days: i));
+        final dateString =
+            '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+
+        final appointments = await _scheduleService.getAppointmentsByDate(
+          widget.currentLawyerEmail,
+          dateString,
+        );
+
+        if (appointments.isNotEmpty) {
+          _appointmentsByDate[dateString] = appointments;
+        }
+      }
+    } catch (e) {
+      // silently handle errors
+    } finally {
+      if (mounted) {
+        setState(() => _appointmentsLoading = false);
+      }
+    }
+  }
+
+  void _goToPreviousWeek() {
+    final newWeekStart = _weekStartDate.subtract(const Duration(days: 7));
+    setState(() {
+      _weekStartDate = newWeekStart;
+      _selectedDate = newWeekStart;
+    });
+    _loadAppointmentsForWeek(newWeekStart);
+  }
+
+  void _goToNextWeek() {
+    final newWeekStart = _weekStartDate.add(const Duration(days: 7));
+    setState(() {
+      _weekStartDate = newWeekStart;
+      _selectedDate = newWeekStart;
+    });
+    _loadAppointmentsForWeek(newWeekStart);
   }
 
   @override
@@ -302,42 +366,222 @@ class _LawyerScheduleScreenState extends State<LawyerScheduleScreen>
         children: [
           _buildWeekCalendar(),
           const SizedBox(height: 24),
-          Text(
-            'Today\'s Schedule - Oct 12, 2025',
-            style: Theme.of(context).textTheme.titleLarge,
+          if (_appointmentsLoading)
+            const Center(child: CircularProgressIndicator())
+          else if (_selectedDate != null)
+            ..._buildAppointmentsList(_selectedDate!),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildAppointmentsList(DateTime date) {
+    final dateString =
+        '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+    final appointments = _appointmentsByDate[dateString] ?? [];
+
+    final dayName = [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday'
+    ][date.weekday - 1];
+    final monthName = [
+      '',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
+    ][date.month];
+
+    return [
+      Text(
+        '$dayName\'s Schedule - ${date.day} $monthName, ${date.year}',
+        style: Theme.of(context).textTheme.titleLarge,
+      ),
+      const SizedBox(height: 16),
+      if (appointments.isEmpty)
+        Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: AppTheme.accentBlue.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppTheme.accentBlue.withOpacity(0.3)),
           ),
-          const SizedBox(height: 16),
-          _buildAppointmentCard(
-            '9:00 AM - 10:00 AM',
-            'John Mitchell',
-            'Criminal Defense - Case Review',
-            'Video Call',
-            AppTheme.primaryBlue,
-            'confirmed',
+          child: Column(
+            children: [
+              Icon(Icons.event_available,
+                  size: 32, color: AppTheme.accentBlue.withOpacity(0.6)),
+              const SizedBox(height: 12),
+              Text(
+                'No appointments scheduled for this day',
+                style: TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 14,
+                ),
+              ),
+            ],
           ),
-          _buildAppointmentCard(
-            '11:00 AM - 12:00 PM',
-            'Maria Garcia',
-            'Family Law - Divorce Consultation',
-            'In-Person',
-            AppTheme.accentBlue,
-            'confirmed',
+        )
+      else
+        ...appointments.asMap().entries.map((entry) {
+          final appointment = entry.value;
+          return _buildAppointmentCardFromData(appointment);
+        }).toList(),
+    ];
+  }
+
+  Widget _buildAppointmentCardFromData(Map<String, dynamic> appointment) {
+    final startTime = appointment['start_time'] ?? '00:00';
+    final endTime = appointment['end_time'] ?? '00:00';
+    final clientName = appointment['user_full_name'] ?? 'Unknown Client';
+    final caseType = appointment['case_type'] ?? 'General Case';
+    final consultationType = appointment['consultation_type'] ?? 'video';
+    final description = appointment['description'] ?? '';
+
+    // Map consultation type to icon and display text
+    String consultationDisplay = 'Video Call';
+    IconData consultationIcon = Icons.videocam;
+
+    if (consultationType == 'voice' || consultationType == 'phone') {
+      consultationDisplay = 'Phone Call';
+      consultationIcon = Icons.phone;
+    } else if (consultationType == 'chat') {
+      consultationDisplay = 'Chat';
+      consultationIcon = Icons.chat;
+    } else if (consultationType == 'in-person') {
+      consultationDisplay = 'In-Person';
+      consultationIcon = Icons.person;
+    }
+
+    // Alternate colors for visual variety
+    final colors = [AppTheme.primaryBlue, AppTheme.accentBlue, Colors.teal];
+    final colorIndex = appointment.hashCode % colors.length;
+    final color = colors[colorIndex];
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withOpacity(0.3), width: 2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 4,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.access_time, size: 14, color: color),
+                        const SizedBox(width: 4),
+                        Text(
+                          '$startTime - $endTime',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: color,
+                          ),
+                        ),
+                        const Spacer(),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Text(
+                            'Confirmed',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.green,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      clientName,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '$caseType - $description',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: AppTheme.textSecondary,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          _buildAppointmentCard(
-            '2:00 PM - 3:00 PM',
-            'David Lee',
-            'Property Dispute - Initial Meeting',
-            'Phone Call',
-            Colors.orange,
-            'pending',
-          ),
-          _buildAppointmentCard(
-            '4:00 PM - 5:00 PM',
-            'Sarah Williams',
-            'Contract Review',
-            'Video Call',
-            AppTheme.primaryBlue,
-            'confirmed',
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Icon(consultationIcon, size: 16, color: color),
+              const SizedBox(width: 4),
+              Text(
+                consultationDisplay,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: color,
+                ),
+              ),
+              const Spacer(),
+              OutlinedButton(
+                onPressed: () {},
+                style: OutlinedButton.styleFrom(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+                child: const Text('Reschedule'),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton(
+                onPressed: () {},
+                style: ElevatedButton.styleFrom(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+                child: const Text('Start'),
+              ),
+            ],
           ),
         ],
       ),
@@ -357,9 +601,9 @@ class _LawyerScheduleScreenState extends State<LawyerScheduleScreen>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'October 2025',
-                style: TextStyle(
+              Text(
+                '${_getMonthYear(_weekStartDate)}',
+                style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),
@@ -368,11 +612,11 @@ class _LawyerScheduleScreenState extends State<LawyerScheduleScreen>
                 children: [
                   IconButton(
                     icon: const Icon(Icons.chevron_left),
-                    onPressed: () {},
+                    onPressed: _goToPreviousWeek,
                   ),
                   IconButton(
                     icon: const Icon(Icons.chevron_right),
-                    onPressed: () {},
+                    onPressed: _goToNextWeek,
                   ),
                 ],
               ),
@@ -381,19 +625,57 @@ class _LawyerScheduleScreenState extends State<LawyerScheduleScreen>
           const SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildDayItem('Mon', '10', false, 3),
-              _buildDayItem('Tue', '11', false, 5),
-              _buildDayItem('Wed', '12', true, 5),
-              _buildDayItem('Thu', '13', false, 4),
-              _buildDayItem('Fri', '14', false, 6),
-              _buildDayItem('Sat', '15', false, 2),
-              _buildDayItem('Sun', '16', false, 0),
-            ],
+            children: List.generate(7, (index) {
+              final date = _weekStartDate.add(Duration(days: index));
+              final isSelected =
+                  _selectedDate != null && _isSameDay(date, _selectedDate!);
+              final dateString =
+                  '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+              final hasAppointments =
+                  _appointmentsByDate.containsKey(dateString);
+
+              return GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _selectedDate = date;
+                  });
+                },
+                child: _buildDayItem(
+                  ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][index],
+                  '${date.day}',
+                  isSelected,
+                  hasAppointments ? 1 : 0,
+                ),
+              );
+            }),
           ),
         ],
       ),
     );
+  }
+
+  String _getMonthYear(DateTime date) {
+    final months = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December'
+    ];
+    return '${months[date.month - 1]} ${date.year}';
+  }
+
+  bool _isSameDay(DateTime date1, DateTime date2) {
+    return date1.year == date2.year &&
+        date1.month == date2.month &&
+        date1.day == date2.day;
   }
 
   Widget _buildDayItem(
@@ -442,134 +724,6 @@ class _LawyerScheduleScreenState extends State<LawyerScheduleScreen>
                 ),
               ),
             ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAppointmentCard(
-    String time,
-    String client,
-    String description,
-    String type,
-    Color color,
-    String status,
-  ) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.3), width: 2),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 4,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: color,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.access_time, size: 14, color: color),
-                        const SizedBox(width: 4),
-                        Text(
-                          time,
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: color,
-                          ),
-                        ),
-                        const Spacer(),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: status == 'confirmed'
-                                ? Colors.green.withOpacity(0.1)
-                                : Colors.orange.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            status == 'confirmed' ? 'Confirmed' : 'Pending',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: status == 'confirmed'
-                                  ? Colors.green[700]
-                                  : Colors.orange[700],
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      client,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      description,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: AppTheme.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Icon(Icons.videocam, size: 16, color: color),
-              const SizedBox(width: 4),
-              Text(
-                type,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: color,
-                ),
-              ),
-              const Spacer(),
-              OutlinedButton(
-                onPressed: () {},
-                style: OutlinedButton.styleFrom(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                ),
-                child: const Text('Reschedule'),
-              ),
-              const SizedBox(width: 8),
-              ElevatedButton(
-                onPressed: () {},
-                style: ElevatedButton.styleFrom(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                ),
-                child: const Text('Start'),
-              ),
-            ],
-          ),
         ],
       ),
     );

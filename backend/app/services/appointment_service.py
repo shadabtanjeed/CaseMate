@@ -182,6 +182,7 @@ class AppointmentService:
         try:
             db = self.get_db()
             appointments = db["appointments"]
+            users = db["users"]
 
             # Convert target_date to datetime object if it's a string
             if isinstance(target_date, str):
@@ -210,12 +211,24 @@ class AppointmentService:
                             "lawyer_email": lawyer_email,
                             "date": {"$gte": start_datetime, "$lte": end_datetime},
                         }
-                    )
+                    ).sort("start_time", 1)
                 )
 
             docs = await asyncio.to_thread(_find)
             for doc in docs:
                 doc["_id"] = str(doc.get("_id", ""))
+                # Fetch user's full_name from users collection
+                user_email = doc.get("user_email")
+                if user_email:
+                    user = await asyncio.to_thread(
+                        lambda: users.find_one({"email": user_email})
+                    )
+                    if user:
+                        doc["user_full_name"] = user.get("full_name", "Unknown")
+                    else:
+                        doc["user_full_name"] = "Unknown"
+                else:
+                    doc["user_full_name"] = "Unknown"
             return docs
         except Exception as e:
             self.logger.error(f"Error getting lawyer appointments for date: {str(e)}")
