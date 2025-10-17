@@ -77,7 +77,7 @@ class PersonalDetailsScreen extends ConsumerWidget {
             // Show user details only if user is NOT a lawyer
             if (!isLawyer) ...[
               const SizedBox(height: 16),
-              _sectionTitle(context, 'User Details'),
+              _sectionTitle(context, 'User Detailss'),
               const SizedBox(height: 8),
               _infoTile(
                 context,
