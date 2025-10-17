@@ -122,6 +122,7 @@ class AppointmentService:
         try:
             db = self.get_db()
             appointments = db["appointments"]
+            lawyers = db["lawyers"]
 
             def _find():
                 return list(appointments.find({"user_email": user_email}))
@@ -129,6 +130,18 @@ class AppointmentService:
             docs = await asyncio.to_thread(_find)
             for doc in docs:
                 doc["_id"] = str(doc.get("_id", ""))
+                # Fetch lawyer's full_name from lawyers collection
+                lawyer_email = doc.get("lawyer_email")
+                if lawyer_email:
+                    lawyer = await asyncio.to_thread(
+                        lambda: lawyers.find_one({"email": lawyer_email})
+                    )
+                    if lawyer:
+                        doc["lawyer_full_name"] = lawyer.get("full_name", "Unknown")
+                    else:
+                        doc["lawyer_full_name"] = "Unknown"
+                else:
+                    doc["lawyer_full_name"] = "Unknown"
             return docs
         except Exception as e:
             self.logger.error(f"Error getting user appointments: {str(e)}")
@@ -200,6 +213,7 @@ class AppointmentService:
         try:
             db = self.get_db()
             appointments = db["appointments"]
+            lawyers = db["lawyers"]
 
             # Convert target_date to datetime object if it's a string
             if isinstance(target_date, str):
@@ -234,6 +248,18 @@ class AppointmentService:
             docs = await asyncio.to_thread(_find)
             for doc in docs:
                 doc["_id"] = str(doc.get("_id", ""))
+                # Fetch lawyer's full_name from lawyers collection
+                lawyer_email = doc.get("lawyer_email")
+                if lawyer_email:
+                    lawyer = await asyncio.to_thread(
+                        lambda: lawyers.find_one({"email": lawyer_email})
+                    )
+                    if lawyer:
+                        doc["lawyer_full_name"] = lawyer.get("full_name", "Unknown")
+                    else:
+                        doc["lawyer_full_name"] = "Unknown"
+                else:
+                    doc["lawyer_full_name"] = "Unknown"
             return docs
         except Exception as e:
             self.logger.error(f"Error getting user appointments for date: {str(e)}")

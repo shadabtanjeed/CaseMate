@@ -42,3 +42,15 @@ final createAppointmentProvider =
     consultationType: appointmentData['consultation_type'],
   );
 });
+
+// Get user appointments provider
+final userAppointmentsProvider =
+    FutureProvider.family<List<dynamic>, String>((ref, userEmail) async {
+  final apiClient = ref.watch(apiClientProvider);
+  try {
+    final response = await apiClient.get('/appointments/user/$userEmail');
+    return response['appointments'] as List<dynamic>? ?? [];
+  } catch (e) {
+    return [];
+  }
+});
