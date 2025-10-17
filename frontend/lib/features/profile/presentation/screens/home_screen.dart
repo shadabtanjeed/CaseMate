@@ -7,6 +7,7 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 class HomeScreen extends ConsumerStatefulWidget {
   final VoidCallback onNavigateToChatbot;
   final Function(String?) onNavigateToLawyers; // optional specialization
+  final VoidCallback onNavigateToSessions;
   final VoidCallback onNavigateToProfile;
   final VoidCallback onNavigateToNotifications;
 
@@ -14,6 +15,7 @@ class HomeScreen extends ConsumerStatefulWidget {
     super.key,
     required this.onNavigateToChatbot,
     required this.onNavigateToLawyers,
+    required this.onNavigateToSessions,
     required this.onNavigateToProfile,
     required this.onNavigateToNotifications,
   });
@@ -618,7 +620,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 () => widget.onNavigateToLawyers(null),
               ),
               _buildFloatingChatButton(),
-              _buildNavItem(Icons.calendar_today, 'Sessions', false, () {}),
+              _buildNavItem(Icons.calendar_today, 'Sessions', false, onNavigateToSessions),
               _buildNavItem(
                 Icons.person_outline,
                 'Profile',
