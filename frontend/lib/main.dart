@@ -20,6 +20,7 @@ import 'features/lawyer/lawyer_schedule_screen.dart';
 import 'features/lawyer/lawyer_cases_screen.dart';
 import 'features/lawyer/lawyer_reviews_screen.dart';
 import 'features/lawyer/lawyer_earnings_screen.dart';
+import 'features/profile/presentation/screens/userpovsessions_screen.dart';
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
@@ -154,6 +155,7 @@ class _AppNavigatorState extends State<AppNavigator> {
         return HomeScreen(
           onNavigateToChatbot: () => _navigateTo('chatbot'),
           onNavigateToLawyers: (String? spec) => _navigateToLawyersWithSpecialization(spec),
+          onNavigateToSessions: () => _navigateTo('sessions'),
           onNavigateToProfile: () => _navigateTo('profile'),
           onNavigateToNotifications: () => _navigateTo('notifications'),
         );
@@ -221,6 +223,9 @@ class _AppNavigatorState extends State<AppNavigator> {
 
       case 'notifications':
         return NotificationsScreen(onBack: () => _navigateTo('home'));
+
+      case 'sessions':
+        return UserPovSessionsScreen(onBack: () => _navigateTo('home'));
 
       default:
         return SplashScreen(onComplete: () => _navigateTo('onboarding'));

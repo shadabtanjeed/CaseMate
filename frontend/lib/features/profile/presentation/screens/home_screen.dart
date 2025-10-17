@@ -8,6 +8,7 @@ import '../../../lawyer/presentation/providers/lawyer_provider.dart';
 class HomeScreen extends ConsumerWidget {
   final VoidCallback onNavigateToChatbot;
   final Function(String?) onNavigateToLawyers; // optional specialization
+  final VoidCallback onNavigateToSessions;
   final VoidCallback onNavigateToProfile;
   final VoidCallback onNavigateToNotifications;
 
@@ -15,6 +16,7 @@ class HomeScreen extends ConsumerWidget {
     super.key,
     required this.onNavigateToChatbot,
     required this.onNavigateToLawyers,
+    required this.onNavigateToSessions,
     required this.onNavigateToProfile,
     required this.onNavigateToNotifications,
   });
@@ -416,7 +418,7 @@ class HomeScreen extends ConsumerWidget {
                 () => onNavigateToLawyers(null),
               ),
               _buildFloatingChatButton(),
-              _buildNavItem(Icons.calendar_today, 'Sessions', false, () {}),
+              _buildNavItem(Icons.calendar_today, 'Sessions', false, onNavigateToSessions),
               _buildNavItem(
                 Icons.person_outline,
                 'Profile',
