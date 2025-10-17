@@ -18,8 +18,8 @@ abstract class AuthRemoteDataSource {
     String? specialization,
     int? yearsOfExperience,
     String? bio,
-    String? phone, // Added phone parameter
-    String? location, // Added location parameter
+    String? phone,
+    String? location,
     String? education,
     String? achievements,
     double? consultationFee,
@@ -31,8 +31,14 @@ abstract class AuthRemoteDataSource {
 
   Future<void> requestPasswordReset(String email);
 
+  Future<void> verifyResetPin({
+    required String email,
+    required String pin,
+  });
+
   Future<void> resetPassword({
-    required String token,
+    required String email,
+    required String code,
     required String newPassword,
   });
 
@@ -61,10 +67,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       },
     );
 
-    // apiClient returns a dynamic decoded JSON; ensure it's a Map<String, dynamic>
-    final Map<String, dynamic> json =
-        Map<String, dynamic>.from(response as Map);
-
+    final Map<String, dynamic> json = Map<String, dynamic>.from(response as Map);
     return TokenModel.fromJson(json);
   }
 
@@ -78,8 +81,8 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     String? specialization,
     int? yearsOfExperience,
     String? bio,
-    String? phone, // Added phone parameter
-    String? location, // Added location parameter
+    String? phone,
+    String? location,
     String? education,
     String? achievements,
     double? consultationFee,
@@ -89,8 +92,8 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       'password': password,
       'full_name': fullName,
       'role': role,
-      'phone': phone, // Include phone in the request body
-      'location': location, // Include location in the request body
+      'phone': phone,
+      'location': location,
       'education': education,
       'achievements': achievements,
     };
@@ -146,14 +149,30 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   }
 
   @override
+  Future<void> verifyResetPin({
+    required String email,
+    required String pin,
+  }) async {
+    await apiClient.post(
+      ApiConstants.verifyResetPin,
+      body: {
+        'email': email,
+        'code': pin,
+      },
+    );
+  }
+
+  @override
   Future<void> resetPassword({
-    required String token,
+    required String email,
+    required String code,
     required String newPassword,
   }) async {
     await apiClient.post(
-      ApiConstants.confirmPasswordReset,
+      ApiConstants.resetPassword,
       body: {
-        'token': token,
+        'email': email,
+        'code': code,
         'new_password': newPassword,
       },
     );

@@ -280,5 +280,84 @@ class AuthService:
 
         return True
 
+    @staticmethod
+    async def verify_reset_code(email: str, code: str) -> bool:
+        """Verify the reset code without resetting password"""
+        # Find valid reset code
+        reset_code = await find_one(
+            "password_reset_codes",
+            {
+                "email": email,
+                "code": code,
+                "used": False,
+                "expires_at": {"$gt": datetime.utcnow()}
+            }
+        )
+
+        if not reset_code:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid or expired verification code"
+            )
+
+        return True
+
+    @staticmethod
+    async def reset_password_with_code(email: str, code: str, new_password: str) -> bool:
+        """Reset password using verified code"""
+        # Verify code is still valid
+        reset_code = await find_one(
+            "password_reset_codes",
+            {
+                "email": email,
+                "code": code,
+                "used": False,
+                "expires_at": {"$gt": datetime.utcnow()}
+            }
+        )
+
+        if not reset_code:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid or expired verification code"
+            )
+
+        # Find user in either collection
+        user = await find_one("users", {"email": email})
+        collection = "users"
+        if not user:
+            user = await find_one("lawyers", {"email": email})
+            collection = "lawyers"
+
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+
+        # Update password
+        hashed_password = AuthService._ph.hash(new_password)
+        await update_one(
+            collection,
+            {"_id": user["_id"]},
+            {
+                "$set": {
+                    "hashed_password": hashed_password,
+                    "updated_at": datetime.utcnow()
+                }
+            }
+        )
+
+        # Mark code as used
+        await update_one(
+            "password_reset_codes",
+            {"_id": reset_code["_id"]},
+            {"$set": {"used": True}}
+        )
+
+        return True
+
+
+
 
 auth_service = AuthService()

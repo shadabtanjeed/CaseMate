@@ -26,10 +26,13 @@ class LawyerRemoteDataSource {
       uri.writeAll(queryParams.entries.map((e) => '${e.key}=${Uri.encodeComponent(e.value)}'), '&');
     }
 
+    // Debug: print the final request URI
+    // ignore: avoid_print
+    print('LawyerRemoteDataSource.request URI: ${uri.toString()}');
     final response = await apiClient.get(uri.toString());
-  // Debug: print raw response to help troubleshooting during development
-  // ignore: avoid_print
-  print('LawyerRemoteDataSource.searchLawyers raw response: $response');
+    // Debug: print raw response to help troubleshooting during development
+    // ignore: avoid_print
+    print('LawyerRemoteDataSource.searchLawyers raw response: $response');
     // response is expected to be a list encoded as JSON object? apiClient.get returns Map; adapt
     // We'll assume response contains a JSON list under 'data' OR is the list itself. Try both.
     final List<dynamic>? rawList = response['data'] as List<dynamic>? ?? (response as dynamic) as List<dynamic>?;

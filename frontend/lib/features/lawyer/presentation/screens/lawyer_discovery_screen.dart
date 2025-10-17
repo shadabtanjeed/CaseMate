@@ -7,12 +7,14 @@ class LawyerDiscoveryScreen extends ConsumerStatefulWidget {
   final VoidCallback onBack;
   final Function(String) onSelectLawyer;
   final Function(String)? onBookNowLawyer;
+  final String? initialSpecialization;
 
   const LawyerDiscoveryScreen({
     super.key,
     required this.onBack,
     required this.onSelectLawyer,
     this.onBookNowLawyer,
+    this.initialSpecialization,
   });
 
   @override
@@ -34,10 +36,25 @@ class _LawyerDiscoveryScreenState extends ConsumerState<LawyerDiscoveryScreen> {
   @override
   void initState() {
     super.initState();
-    // trigger initial load
+    // trigger initial load — apply initial specialization filter if provided
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(lawyerListNotifierProvider.notifier).search();
+      ref.read(lawyerListNotifierProvider.notifier).search(
+            specialization: widget.initialSpecialization,
+          );
     });
+  }
+  
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Persist the incoming specialization so later filter actions include it
+    if (widget.initialSpecialization != null && _selectedSpecialization == null) {
+      setState(() {
+        _selectedSpecialization = widget.initialSpecialization;
+        // Optionally prefill the search field to show the active filter
+        _searchController.text = widget.initialSpecialization!;
+      });
+    }
   }
 
   @override
@@ -301,6 +318,8 @@ class _LawyerDiscoveryScreenState extends ConsumerState<LawyerDiscoveryScreen> {
   }
 
   void _showFilterSheet(BuildContext context) {
+    final specAsync = ref.watch(lawyerSpecializationsProvider);
+
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -319,21 +338,32 @@ class _LawyerDiscoveryScreenState extends ConsumerState<LawyerDiscoveryScreen> {
             const SizedBox(height: 24),
             const Text('Specialization'),
             const SizedBox(height: 8),
-            DropdownButtonFormField<String>(
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
+            specAsync.when(
+              data: (specs) {
+                return DropdownButtonFormField<String>(
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                  ),
+                  value: _selectedSpecialization,
+                  items: specs
+                      .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                      .toList(),
+                  onChanged: (value) => setState(() => _selectedSpecialization = value),
+                );
+              },
+              loading: () => const SizedBox(
+                height: 56,
+                child: Center(child: CircularProgressIndicator()),
               ),
-              items: const [
-                DropdownMenuItem(
-                    value: 'criminal', child: Text('Criminal Law')),
-                DropdownMenuItem(value: 'civil', child: Text('Civil Law')),
-                DropdownMenuItem(value: 'family', child: Text('Family Law')),
-                DropdownMenuItem(
-                    value: 'property', child: Text('Property Law')),
-                DropdownMenuItem(
-                    value: 'corporate', child: Text('Corporate Law')),
-              ],
-              onChanged: (value) => _selectedSpecialization = value,
+              error: (e, st) {
+                return DropdownButtonFormField<String>(
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                  ),
+                  items: const [],
+                  onChanged: (value) => _selectedSpecialization = value,
+                );
+              },
             ),
             const SizedBox(height: 16),
             const Text('Minimum Rating'),

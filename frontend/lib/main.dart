@@ -61,10 +61,18 @@ class _AppNavigatorState extends State<AppNavigator> {
   String _currentScreen = 'splash';
   String _selectedLawyerId = '';
   bool _openAvailabilityTab = false;
+  String? _selectedSpecialization;
 
   void _navigateTo(String screen) {
     setState(() {
       _currentScreen = screen;
+    });
+  }
+
+  void _navigateToLawyersWithSpecialization(String? spec) {
+    setState(() {
+      _selectedSpecialization = spec;
+      _currentScreen = 'lawyers';
     });
   }
 
@@ -149,7 +157,7 @@ class _AppNavigatorState extends State<AppNavigator> {
       case 'home':
         return HomeScreen(
           onNavigateToChatbot: () => _navigateTo('chatbot'),
-          onNavigateToLawyers: () => _navigateTo('lawyers'),
+          onNavigateToLawyers: (String? spec) => _navigateToLawyersWithSpecialization(spec),
           onNavigateToProfile: () => _navigateTo('profile'),
           onNavigateToNotifications: () => _navigateTo('notifications'),
         );
@@ -165,6 +173,7 @@ class _AppNavigatorState extends State<AppNavigator> {
           onBack: () => _navigateTo('home'),
           onSelectLawyer: _handleSelectLawyer,
           onBookNowLawyer: _handleBookNowLawyer,
+          initialSpecialization: _selectedSpecialization,
         );
 
       case 'lawyer-detail':
