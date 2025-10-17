@@ -59,3 +59,10 @@ async def get_current_lawyer(
             detail="Your lawyer account is pending approval",
         )
     return current_user
+
+
+async def get_current_user_email(
+    current_user: UserInDB = Depends(get_current_user)
+) -> str:
+    """Return the email of the current authenticated user."""
+    return current_user.email

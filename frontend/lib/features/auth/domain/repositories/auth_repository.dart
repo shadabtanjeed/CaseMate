@@ -20,6 +20,7 @@ abstract class AuthRepository {
     String? specialization,
     int? yearsOfExperience,
     String? bio,
+    double? consultationFee,
   });
 
   Future<void> logout();
@@ -30,8 +31,14 @@ abstract class AuthRepository {
 
   Future<void> requestPasswordReset(String email);
 
+  Future<void> verifyResetPin({
+    required String email,
+    required String pin,
+  });
+
   Future<void> resetPassword({
-    required String token,
+    required String email,
+    required String code,
     required String newPassword,
   });
 

@@ -12,22 +12,23 @@ import '../../domain/usecases/register_usecase.dart';
 import '../../domain/usecases/refresh_token_usecase.dart';
 import '../../domain/usecases/request_password_reset_usecase.dart';
 import '../../domain/usecases/reset_password_usecase.dart';
+import '../../domain/usecases/verify_reset_pin_usecase.dart';
 
 // Dependencies
 final apiClientProvider = Provider<ApiClient>((ref) => ApiClient());
 
 final authLocalDataSourceProvider = Provider<AuthLocalDataSource>(
-  (ref) => AuthLocalDataSourceImpl(),
+      (ref) => AuthLocalDataSourceImpl(),
 );
 
 final authRemoteDataSourceProvider = Provider<AuthRemoteDataSource>(
-  (ref) => AuthRemoteDataSourceImpl(
+      (ref) => AuthRemoteDataSourceImpl(
     apiClient: ref.watch(apiClientProvider),
   ),
 );
 
 final authRepositoryProvider = Provider<AuthRepository>(
-  (ref) => AuthRepositoryImpl(
+      (ref) => AuthRepositoryImpl(
     remoteDataSource: ref.watch(authRemoteDataSourceProvider),
     localDataSource: ref.watch(authLocalDataSourceProvider),
   ),
@@ -35,32 +36,36 @@ final authRepositoryProvider = Provider<AuthRepository>(
 
 // Use cases
 final loginUseCaseProvider = Provider<LoginUseCase>(
-  (ref) => LoginUseCase(ref.watch(authRepositoryProvider)),
+      (ref) => LoginUseCase(ref.watch(authRepositoryProvider)),
 );
 
 final registerUseCaseProvider = Provider<RegisterUseCase>(
-  (ref) => RegisterUseCase(ref.watch(authRepositoryProvider)),
+      (ref) => RegisterUseCase(ref.watch(authRepositoryProvider)),
 );
 
 final logoutUseCaseProvider = Provider<LogoutUseCase>(
-  (ref) => LogoutUseCase(ref.watch(authRepositoryProvider)),
+      (ref) => LogoutUseCase(ref.watch(authRepositoryProvider)),
 );
 
 final getCurrentUserUseCaseProvider = Provider<GetCurrentUserUseCase>(
-  (ref) => GetCurrentUserUseCase(ref.watch(authRepositoryProvider)),
+      (ref) => GetCurrentUserUseCase(ref.watch(authRepositoryProvider)),
 );
 
 final refreshTokenUseCaseProvider = Provider<RefreshTokenUseCase>(
-  (ref) => RefreshTokenUseCase(ref.watch(authRepositoryProvider)),
+      (ref) => RefreshTokenUseCase(ref.watch(authRepositoryProvider)),
 );
 
 final requestPasswordResetUseCaseProvider =
-    Provider<RequestPasswordResetUseCase>(
-  (ref) => RequestPasswordResetUseCase(ref.watch(authRepositoryProvider)),
+Provider<RequestPasswordResetUseCase>(
+      (ref) => RequestPasswordResetUseCase(ref.watch(authRepositoryProvider)),
 );
 
 final resetPasswordUseCaseProvider = Provider<ResetPasswordUseCase>(
-  (ref) => ResetPasswordUseCase(ref.watch(authRepositoryProvider)),
+      (ref) => ResetPasswordUseCase(ref.watch(authRepositoryProvider)),
+);
+
+final verifyResetPinUseCaseProvider = Provider<VerifyResetPinUseCase>(
+      (ref) => VerifyResetPinUseCase(ref.watch(authRepositoryProvider)),
 );
 
 // Auth State
@@ -101,6 +106,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   final RefreshTokenUseCase refreshTokenUseCase;
   final RequestPasswordResetUseCase requestPasswordResetUseCase;
   final ResetPasswordUseCase resetPasswordUseCase;
+  final VerifyResetPinUseCase verifyResetPinUseCase;
   final AuthLocalDataSource localDataSource;
   
   Future<void> refreshCurrentUser() async {
@@ -122,19 +128,20 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required this.refreshTokenUseCase,
     required this.requestPasswordResetUseCase,
     required this.resetPasswordUseCase,
+    required this.verifyResetPinUseCase,
     required this.localDataSource,
   }) : super(AuthState());
 
   // Initialize auth state on app start
   Future<void> checkAuthStatus() async {
     state = state.copyWith(isLoading: true);
-    
+
     try {
       final isLoggedIn = await localDataSource.isLoggedIn();
-      
+
       if (isLoggedIn) {
         final user = await getCurrentUserUseCase();
-        
+
         if (user != null) {
           state = AuthState(
             user: user,
@@ -159,11 +166,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> _tryRefreshToken() async {
     try {
       final refreshToken = await localDataSource.getRefreshToken();
-      
+
       if (refreshToken != null) {
         await refreshTokenUseCase(refreshToken);
         final user = await getCurrentUserUseCase();
-        
+
         if (user != null) {
           state = AuthState(
             user: user,
@@ -177,7 +184,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       // Refresh failed, clear data
       await logoutUseCase();
     }
-    
+
     state = AuthState(isLoading: false);
   }
 
@@ -222,6 +229,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     String? specialization,
     int? yearsOfExperience,
     String? bio,
+    double? consultationFee,
   }) async {
     state = state.copyWith(isLoading: true, error: null);
 
@@ -239,6 +247,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         specialization: specialization,
         yearsOfExperience: yearsOfExperience,
         bio: bio,
+        consultationFee: consultationFee,
       );
       // Do not auto-login after registration. Let UI navigate to Login screen.
       state = state.copyWith(isLoading: false);
@@ -284,16 +293,38 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  // Verify reset PIN
+  Future<bool> verifyResetPin({
+    required String email,
+    required String pin,
+  }) async {
+    state = state.copyWith(isLoading: true, error: null);
+
+    try {
+      await verifyResetPinUseCase(email: email, pin: pin);
+      state = state.copyWith(isLoading: false);
+      return true;
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: e.toString(),
+      );
+      return false;
+    }
+  }
+
   // Reset password
   Future<bool> resetPassword({
-    required String token,
+    required String email,
+    required String code,
     required String newPassword,
   }) async {
     state = state.copyWith(isLoading: true, error: null);
 
     try {
       await resetPasswordUseCase(
-        token: token,
+        email: email,
+        code: code,
         newPassword: newPassword,
       );
       state = state.copyWith(isLoading: false);
@@ -322,6 +353,7 @@ final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
     refreshTokenUseCase: ref.watch(refreshTokenUseCaseProvider),
     requestPasswordResetUseCase: ref.watch(requestPasswordResetUseCaseProvider),
     resetPasswordUseCase: ref.watch(resetPasswordUseCaseProvider),
+    verifyResetPinUseCase: ref.watch(verifyResetPinUseCaseProvider),
     localDataSource: ref.watch(authLocalDataSourceProvider),
   );
 });

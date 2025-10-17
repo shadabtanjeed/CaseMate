@@ -37,6 +37,7 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+  @override
   Future<User> register({
     required String email,
     required String password,
@@ -50,6 +51,7 @@ class AuthRepositoryImpl implements AuthRepository {
     String? bio,
     String? phone, // Added phone parameter
     String? location, // Added location parameter
+    double? consultationFee,
   }) async {
     final userModel = await remoteDataSource.register(
       email: email,
@@ -64,6 +66,7 @@ class AuthRepositoryImpl implements AuthRepository {
       bio: bio,
       phone: phone, // Pass phone to remoteDataSource
       location: location, // Pass location to remoteDataSource
+      consultationFee: consultationFee,
     );
 
     // Note: After registration, user still needs to login
@@ -122,11 +125,13 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<void> resetPassword({
-    required String token,
+    required String email,
+    required String code,
     required String newPassword,
   }) async {
     await remoteDataSource.resetPassword(
-      token: token,
+      email: email,
+      code: code,
       newPassword: newPassword,
     );
   }
@@ -148,8 +153,17 @@ class AuthRepositoryImpl implements AuthRepository {
     );
   }
 
+
   @override
   Future<bool> isLoggedIn() async {
     return await localDataSource.isLoggedIn();
+  }
+
+  @override
+  Future<void> verifyResetPin({
+    required String email,
+    required String pin,
+  }) async {
+    await remoteDataSource.verifyResetPin(email: email, pin: pin);
   }
 }

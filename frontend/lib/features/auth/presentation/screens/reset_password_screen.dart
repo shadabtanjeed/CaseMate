@@ -4,11 +4,13 @@ import '../../../../core/theme/app_theme.dart';
 import '../providers/auth_provider.dart';
 
 class ResetPasswordScreen extends ConsumerStatefulWidget {
-  final String token;
+  final String email;
+  final String code;
 
   const ResetPasswordScreen({
     super.key,
-    required this.token,
+    required this.email,
+    required this.code,
   });
 
   @override
@@ -34,9 +36,10 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     final success = await ref.read(authProvider.notifier).resetPassword(
-          token: widget.token,
-          newPassword: _passwordController.text,
-        );
+      email: widget.email,
+      code: widget.code,
+      newPassword: _passwordController.text,
+    );
 
     if (success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -84,7 +87,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.lock_reset,
                     size: 80,
                     color: AppTheme.primaryBlue,
@@ -93,16 +96,16 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                   Text(
                     'Create New Password',
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                      fontWeight: FontWeight.bold,
+                    ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 8),
                   Text(
                     'Enter your new password below',
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: AppTheme.textSecondary,
-                        ),
+                      color: AppTheme.textSecondary,
+                    ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 48),
@@ -148,7 +151,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                         ),
                         onPressed: () {
                           setState(() => _obscureConfirmPassword =
-                              !_obscureConfirmPassword);
+                          !_obscureConfirmPassword);
                         },
                       ),
                     ),
@@ -170,17 +173,17 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                     ),
                     child: authState.isLoading
                         ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
                         : const Text(
-                            'Update Password',
-                            style: TextStyle(fontSize: 16),
-                          ),
+                      'Update Password',
+                      style: TextStyle(fontSize: 16),
+                    ),
                   ),
                 ],
               ),
