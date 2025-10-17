@@ -31,6 +31,9 @@ class _LawyerDetailScreenState extends ConsumerState<LawyerDetailScreen>
   DateTime? _selectedDateTime; // Store the actual DateTime
   final ScrollController _availabilityScrollController = ScrollController();
 
+  // Schedule service for fetching appointments
+  final ScheduleService _scheduleService = ScheduleService();
+
   @override
   void initState() {
     super.initState();
@@ -520,59 +523,93 @@ class _LawyerDetailScreenState extends ConsumerState<LawyerDetailScreen>
                     final slots = item['slots'] as List<dynamic>;
                     final dateStr =
                         '${date.day} ${_getMonthName(date.month)} ${date.year}';
+                    final dateOnlyStr =
+                        date.toString().split(' ')[0]; // YYYY-MM-DD
 
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              dateStr,
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.w600, fontSize: 16),
-                            ),
-                            const SizedBox(height: 12),
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
-                              children: slots.map((slot) {
-                                final start = slot['start'] ?? '';
-                                final end = slot['end'] ?? '';
-                                final slotId =
-                                    '${date.toString().split(' ')[0]}_$start';
-                                final isSelected = _selectedSlot == slotId;
-                                return FilterChip(
-                                  label: Text(
-                                      '${_formatTimeToAMPM(start)} - ${_formatTimeToAMPM(end)}'),
-                                  selected: isSelected,
-                                  onSelected: (selected) {
-                                    setState(() {
-                                      _selectedSlot = selected ? slotId : null;
-                                      _selectedDateTime =
-                                          selected ? date : null;
-                                    });
-                                  },
-                                  backgroundColor:
-                                      AppTheme.primaryBlue.withOpacity(0.1),
-                                  selectedColor: AppTheme.primaryBlue,
-                                  labelStyle: TextStyle(
-                                    color: isSelected
-                                        ? Colors.white
-                                        : AppTheme.primaryBlue,
-                                  ),
-                                  side: BorderSide(
-                                    color: isSelected
-                                        ? AppTheme.primaryBlue
-                                        : AppTheme.borderColor,
-                                  ),
-                                );
-                              }).toList(),
-                            ),
-                          ],
-                        ),
+                    return FutureBuilder<List<Map<String, dynamic>>>(
+                      future: _scheduleService.getAppointmentsByDate(
+                        lawyer!.email ?? '',
+                        dateOnlyStr,
                       ),
+                      builder: (context, appointmentSnapshot) {
+                        // Extract booked time slots from appointments
+                        final bookedSlots = <String>[];
+                        if (appointmentSnapshot.hasData) {
+                          for (final appt in appointmentSnapshot.data ??
+                              <Map<String, dynamic>>[]) {
+                            final startTime = appt['start_time'] ?? '';
+                            if (startTime.isNotEmpty) {
+                              bookedSlots.add(startTime);
+                            }
+                          }
+                        }
+
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  dateStr,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 16),
+                                ),
+                                const SizedBox(height: 12),
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: slots.map((slot) {
+                                    final start = slot['start'] ?? '';
+                                    final end = slot['end'] ?? '';
+                                    final slotId = '${dateOnlyStr}_$start';
+                                    final isSelected = _selectedSlot == slotId;
+                                    final isBooked =
+                                        bookedSlots.contains(start);
+
+                                    return FilterChip(
+                                      label: Text(
+                                          '${_formatTimeToAMPM(start)} - ${_formatTimeToAMPM(end)}${isBooked ? ' (Booked)' : ''}'),
+                                      selected: isSelected && !isBooked,
+                                      onSelected: isBooked
+                                          ? null
+                                          : (selected) {
+                                              setState(() {
+                                                _selectedSlot =
+                                                    selected ? slotId : null;
+                                                _selectedDateTime =
+                                                    selected ? date : null;
+                                              });
+                                            },
+                                      backgroundColor: isBooked
+                                          ? Colors.grey.withOpacity(0.2)
+                                          : AppTheme.primaryBlue
+                                              .withOpacity(0.1),
+                                      selectedColor: AppTheme.primaryBlue,
+                                      labelStyle: TextStyle(
+                                        color: isBooked
+                                            ? Colors.grey
+                                            : isSelected
+                                                ? Colors.white
+                                                : AppTheme.primaryBlue,
+                                      ),
+                                      side: BorderSide(
+                                        color: isBooked
+                                            ? Colors.grey.withOpacity(0.3)
+                                            : isSelected
+                                                ? AppTheme.primaryBlue
+                                                : AppTheme.borderColor,
+                                      ),
+                                    );
+                                  }).toList(),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
                     );
                   },
                 ),

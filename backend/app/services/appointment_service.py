@@ -151,6 +151,50 @@ class AppointmentService:
             self.logger.error(f"Error getting lawyer appointments: {str(e)}")
             raise
 
+    async def get_appointments_by_lawyer_and_date(self, lawyer_email: str, target_date):
+        """Get appointments for a lawyer on a specific date"""
+        try:
+            db = self.get_db()
+            appointments = db["appointments"]
+
+            # Convert target_date to datetime object if it's a string
+            if isinstance(target_date, str):
+                target_date = datetime.strptime(target_date, "%Y-%m-%d").date()
+
+            # Create date range for the entire day
+            from datetime import date as dateclass, timedelta
+
+            if isinstance(target_date, dateclass):
+                start_datetime = datetime.combine(target_date, datetime.min.time())
+                end_datetime = datetime.combine(target_date, datetime.max.time())
+            else:
+                # target_date is already a datetime, get just the date part
+                target_date_only = (
+                    target_date.date()
+                    if isinstance(target_date, datetime)
+                    else target_date
+                )
+                start_datetime = datetime.combine(target_date_only, datetime.min.time())
+                end_datetime = datetime.combine(target_date_only, datetime.max.time())
+
+            def _find():
+                return list(
+                    appointments.find(
+                        {
+                            "lawyer_email": lawyer_email,
+                            "date": {"$gte": start_datetime, "$lte": end_datetime},
+                        }
+                    )
+                )
+
+            docs = await asyncio.to_thread(_find)
+            for doc in docs:
+                doc["_id"] = str(doc.get("_id", ""))
+            return docs
+        except Exception as e:
+            self.logger.error(f"Error getting lawyer appointments for date: {str(e)}")
+            raise
+
     async def update_appointment_status(self, appointment_id: str, is_finished: bool):
         """Update appointment completion status"""
         try:

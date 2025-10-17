@@ -68,6 +68,21 @@ async def get_lawyer_appointments(lawyer_email: str):
         )
 
 
+@router.get("/lawyer/{lawyer_email}/date/{date}")
+async def get_lawyer_appointments_by_date(lawyer_email: str, date: str):
+    """Get appointments for a lawyer on a specific date (format: YYYY-MM-DD)"""
+    try:
+        appointments = await appointment_service.get_appointments_by_lawyer_and_date(
+            lawyer_email, date
+        )
+        return {"appointments": appointments}
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get appointments: {str(e)}",
+        )
+
+
 @router.put("/{appointment_id}/status")
 async def update_appointment_status(appointment_id: str, is_finished: bool):
     """Update appointment status"""
