@@ -31,7 +31,7 @@ final createAppointmentProvider =
     FutureProvider.family<Map<String, dynamic>, Map<String, dynamic>>(
         (ref, appointmentData) async {
   final repository = ref.watch(appointmentRepositoryProvider);
-  return await repository.createAppointment(
+  final result = await repository.createAppointment(
     lawyerEmail: appointmentData['lawyer_email'],
     userEmail: appointmentData['user_email'],
     date: appointmentData['date'],
@@ -41,6 +41,24 @@ final createAppointmentProvider =
     description: appointmentData['description'],
     consultationType: appointmentData['consultation_type'],
   );
+
+  // Invalidate appointment caches after successful creation
+  if (result.containsKey('success') && result['success'] == true) {
+    final userEmail = appointmentData['user_email'];
+    final lawyerEmail = appointmentData['lawyer_email'];
+
+    // Invalidate user appointments cache
+    ref.invalidate(userAppointmentsProvider(userEmail));
+
+    // Invalidate lawyer appointments cache
+    ref.invalidate(lawyerAppointmentsProvider(lawyerEmail));
+
+    // Invalidate dependent providers
+    ref.invalidate(nextAppointmentProvider(lawyerEmail));
+    ref.invalidate(upcomingAppointmentsProvider(lawyerEmail));
+  }
+
+  return result;
 });
 
 // Get user appointments provider
@@ -125,3 +143,23 @@ final upcomingAppointmentsProvider =
   // Return top 2 appointments
   return upcomingAppointments.take(2).toList();
 });
+
+// Refresh user appointments provider
+final refreshUserAppointmentsProvider = Provider.family<Function, String>(
+  (ref, userEmail) {
+    return () {
+      ref.invalidate(userAppointmentsProvider(userEmail));
+    };
+  },
+);
+
+// Refresh lawyer appointments provider
+final refreshLawyerAppointmentsProvider = Provider.family<Function, String>(
+  (ref, lawyerEmail) {
+    return () {
+      ref.invalidate(lawyerAppointmentsProvider(lawyerEmail));
+      ref.invalidate(nextAppointmentProvider(lawyerEmail));
+      ref.invalidate(upcomingAppointmentsProvider(lawyerEmail));
+    };
+  },
+);

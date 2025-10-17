@@ -31,6 +31,23 @@ class LawyerHomeScreen extends ConsumerStatefulWidget {
 class _LawyerHomeScreenState extends ConsumerState<LawyerHomeScreen> {
   int _selectedIndex = 0;
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Refresh appointments when screen is shown
+    _refreshAppointments();
+  }
+
+  void _refreshAppointments() {
+    final authState = ref.read(authProvider);
+    final lawyerEmail = authState.user?.email;
+
+    if (lawyerEmail != null && lawyerEmail.isNotEmpty) {
+      final refresh = ref.read(refreshLawyerAppointmentsProvider(lawyerEmail));
+      refresh();
+    }
+  }
+
   // Helper method to format time to 12-hour AM/PM format
   String _formatTimeToAmPm(String timeRange) {
     try {

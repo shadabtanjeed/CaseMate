@@ -71,6 +71,13 @@ class _LawyerScheduleScreenState extends State<LawyerScheduleScreen>
     });
   }
 
+  @override
+  void didUpdateWidget(LawyerScheduleScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Refresh appointments if lawyer email changed or when returning to screen
+    _loadAppointmentsForWeek(_weekStartDate);
+  }
+
   Future<void> _loadScheduleFromBackend() async {
     setState(() => _isLoading = true);
     try {
@@ -466,7 +473,11 @@ class _LawyerScheduleScreenState extends State<LawyerScheduleScreen>
     }
 
     // Alternate colors for visual variety
-    final colors = [AppTheme.primaryBlue, AppTheme.accentBlue, Colors.teal];
+    final colors = [
+      AppTheme.primaryBlue,
+      AppTheme.accentBlue,
+      AppTheme.accentBlue
+    ];
     final colorIndex = appointment.hashCode % colors.length;
     final color = colors[colorIndex];
 

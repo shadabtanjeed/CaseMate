@@ -24,6 +24,23 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Refresh appointments when screen is shown
+    _refreshAppointments();
+  }
+
+  void _refreshAppointments() {
+    final authState = ref.read(authProvider);
+    final userEmail = authState.user?.email;
+
+    if (userEmail != null && userEmail.isNotEmpty) {
+      final refresh = ref.read(refreshUserAppointmentsProvider(userEmail));
+      refresh();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.background,
