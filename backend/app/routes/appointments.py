@@ -9,7 +9,10 @@ router = APIRouter(prefix="/appointments", tags=["Appointments"])
 async def create_appointment(appointment_data: AppointmentIn):
     """Create a new appointment and associated case"""
     try:
-        result = await appointment_service.create_appointment(appointment_data.dict())
+        # Use model_dump() for Pydantic V2 compatibility
+        result = await appointment_service.create_appointment(
+            appointment_data.model_dump()
+        )
         return result
     except Exception as e:
         raise HTTPException(

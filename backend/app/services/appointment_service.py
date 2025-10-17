@@ -23,12 +23,29 @@ class AppointmentService:
             appointment_id = str(uuid.uuid4())
             case_id = str(uuid.uuid4())
 
+            # Parse date if it's a string (in case of direct dict input)
+            appointment_date = appointment_data.get("date")
+            if isinstance(appointment_date, str):
+                try:
+                    # Try "DD MMM YYYY" format
+                    parsed_date = datetime.strptime(appointment_date, "%d %b %Y")
+                except ValueError:
+                    # Try ISO format
+                    try:
+                        parsed_date = datetime.strptime(appointment_date, "%Y-%m-%d")
+                    except ValueError:
+                        self.logger.error(f"Invalid date format: {appointment_date}")
+                        raise ValueError(
+                            f"Invalid date format. Expected 'DD MMM YYYY' or 'YYYY-MM-DD'"
+                        )
+                appointment_date = parsed_date
+
             # Create appointment document
             appointment_doc = {
                 "appointment_id": appointment_id,
                 "lawyer_email": appointment_data["lawyer_email"],
                 "user_email": appointment_data["user_email"],
-                "date": appointment_data["date"],
+                "date": appointment_date,  # Store as datetime (MongoDB ISODate compatible)
                 "start_time": appointment_data["start_time"],
                 "end_time": appointment_data["end_time"],
                 "is_finished": False,

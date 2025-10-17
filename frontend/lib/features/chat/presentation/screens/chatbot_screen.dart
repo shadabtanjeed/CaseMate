@@ -27,7 +27,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     ChatMessage(
       isBot: true,
       message: '''
-Hello! I'm CaseMateBot, your AI legal assistant. How can I help you today?
+Hello! I'm LegalBot, your AI legal assistant. How can I help you today?
 
 **Please be aware that my responses are for informational purposes only and do not constitute legal advice. The app will not be liable for any actions taken based on my responses.**
 ''',
@@ -241,7 +241,7 @@ Hello! I'm CaseMateBot, your AI legal assistant. How can I help you today?
               _messages.add(ChatMessage(
                 isBot: true,
                 message: '''
-Hello! I'm CaseMateBot, your AI legal assistant. How can I help you today?
+Hello! I'm LegalBot, your AI legal assistant. How can I help you today?
 
 **Please be aware that my responses are for informational purposes only and do not constitute legal advice. The app will not be liable for any actions taken based on my responses.**
 ''',
