@@ -27,6 +27,7 @@ dependencies:
   flutter_dotenv: ^6.0.0
   flutter_markdown: ^0.7.7+1
   flutter_animate: ^4.5.2
+  jitsi_meet_flutter_sdk: ^11.6.0
 
 dev_dependencies:
   flutter_test:

@@ -19,6 +19,7 @@ class _UserPovSessionsScreenState extends ConsumerState<UserPovSessionsScreen>
   List<Map<String, dynamic>> _appointments = [];
   bool _isLoading = true;
   String? _error;
+  final Set<String> _visibleIds = {};
 
   @override
   void initState() {
@@ -52,6 +53,15 @@ class _UserPovSessionsScreenState extends ConsumerState<UserPovSessionsScreen>
         _appointments = data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
         _isLoading = false;
       });
+
+      // Staggered entrance animation - smoother and slower for visibility
+      for (var i = 0; i < _appointments.length; i++) {
+        final idKey = (_appointments[i]['appointment_id'] ?? i).toString();
+        Future.delayed(Duration(milliseconds: 150 * i), () {
+          if (!mounted) return;
+          setState(() => _visibleIds.add(idKey));
+        });
+      }
     } catch (e) {
       setState(() {
         _error = e.toString();
@@ -105,7 +115,7 @@ class _UserPovSessionsScreenState extends ConsumerState<UserPovSessionsScreen>
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final appointmentDay = DateTime(dt.year, dt.month, dt.day);
-    
+
     if (appointmentDay == today) {
       return 'Today, ${_formatTime(dt)}';
     } else if (appointmentDay == today.add(const Duration(days: 1))) {
@@ -305,9 +315,9 @@ class _UserPovSessionsScreenState extends ConsumerState<UserPovSessionsScreen>
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: Row(
+                    child: const Row(
                       mainAxisAlignment: MainAxisAlignment.center,
-                      children: const [
+                      children: [
                         Icon(Icons.video_call, size: 20),
                         SizedBox(width: 8),
                         Text(
@@ -507,22 +517,44 @@ class _UserPovSessionsScreenState extends ConsumerState<UserPovSessionsScreen>
               : TabBarView(
                   controller: _tabController,
                   children: [
-                    _upcoming.isEmpty
-                        ? _buildEmptyState('No upcoming sessions', Icons.event_available_outlined)
-                        : ListView.builder(
-                            padding: const EdgeInsets.fromLTRB(0, 20, 0, 12),
-                            itemCount: _upcoming.length,
-                            itemBuilder: (context, idx) => _buildCard(_upcoming[idx], true),
-                          ),
-                    _past.isEmpty
-                        ? _buildEmptyState('No past sessions', Icons.history_outlined)
-                        : ListView.builder(
-                            padding: const EdgeInsets.fromLTRB(0, 20, 0, 12),
-                            itemCount: _past.length,
-                            itemBuilder: (context, idx) => _buildCard(_past[idx], false),
-                          ),
+                    _buildAnimatedList(_upcoming, true),
+                    _buildAnimatedList(_past, false),
                   ],
                 ),
+    );
+  }
+
+  Widget _buildAnimatedList(List<Map<String, dynamic>> items, bool upcoming) {
+    if (items.isEmpty) {
+      return _buildEmptyState(
+          upcoming ? 'No upcoming sessions' : 'No past sessions',
+          upcoming ? Icons.event_available_outlined : Icons.history_outlined);
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(0, 20, 0, 12),
+      itemCount: items.length,
+      itemBuilder: (context, idx) {
+        final appt = items[idx];
+        final idKey = (appt['appointment_id'] ?? idx).toString();
+        final visible = _visibleIds.contains(idKey);
+
+        return AnimatedOpacity(
+          duration: const Duration(milliseconds: 600),
+          opacity: visible ? 1.0 : 0.0,
+          child: AnimatedSlide(
+            duration: const Duration(milliseconds: 600),
+            curve: Curves.easeOutBack,
+            offset: visible ? Offset.zero : const Offset(0, 0.2),
+            child: AnimatedScale(
+              duration: const Duration(milliseconds: 600),
+              scale: visible ? 1.0 : 0.95,
+              curve: Curves.easeOutBack,
+              child: _buildCard(appt, upcoming),
+            ),
+          ),
+        );
+      },
     );
   }
 }
