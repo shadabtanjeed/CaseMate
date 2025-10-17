@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../booking/presentation/providers/appointment_provider.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   final VoidCallback onNavigateToChatbot;
-  final VoidCallback onNavigateToLawyers;
+  final Function(String?) onNavigateToLawyers; // optional specialization
+  final VoidCallback onNavigateToSessions;
   final VoidCallback onNavigateToProfile;
   final VoidCallback onNavigateToNotifications;
 
@@ -11,9 +15,32 @@ class HomeScreen extends StatelessWidget {
     super.key,
     required this.onNavigateToChatbot,
     required this.onNavigateToLawyers,
+    required this.onNavigateToSessions,
     required this.onNavigateToProfile,
     required this.onNavigateToNotifications,
   });
+
+  @override
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Refresh appointments when screen is shown
+    _refreshAppointments();
+  }
+
+  void _refreshAppointments() {
+    final authState = ref.read(authProvider);
+    final userEmail = authState.user?.email;
+
+    if (userEmail != null && userEmail.isNotEmpty) {
+      final refresh = ref.read(refreshUserAppointmentsProvider(userEmail));
+      refresh();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -22,16 +49,16 @@ class HomeScreen extends StatelessWidget {
       body: SafeArea(
         child: Column(
           children: [
-            _buildHeader(context),
+            _buildHeader(context, ref),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildLegalBotCard(context),
+                    _buildLegalBotCard(context, ref),
                     const SizedBox(height: 24),
-                    _buildCategoriesSection(context),
+                    _buildCategoriesSection(context, ref),
                     const SizedBox(height: 24),
                     _buildUpcomingConsultations(context),
                     const SizedBox(height: 80),
@@ -46,7 +73,9 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authProvider);
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: const BoxDecoration(
@@ -79,13 +108,14 @@ class HomeScreen extends StatelessWidget {
                   children: [
                     Text(
                       'Hello,',
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodyMedium?.copyWith(color: Colors.white70),
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodyMedium
+                          ?.copyWith(color: Colors.white70),
                     ),
-                    const Text(
-                      'John Doe',
-                      style: TextStyle(
+                    Text(
+                      authState.user?.fullName ?? 'User',
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
@@ -97,7 +127,7 @@ class HomeScreen extends StatelessWidget {
               Stack(
                 children: [
                   IconButton(
-                    onPressed: onNavigateToNotifications,
+                    onPressed: widget.onNavigateToNotifications,
                     icon: const Icon(
                       Icons.notifications_outlined,
                       color: Colors.white,
@@ -119,7 +149,6 @@ class HomeScreen extends StatelessWidget {
                       child: const Text(
                         '3',
                         style: TextStyle(color: Colors.white, fontSize: 10),
-                        textAlign: TextAlign.center,
                       ),
                     ),
                   ),
@@ -129,83 +158,35 @@ class HomeScreen extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           TextField(
-            onTap: onNavigateToLawyers,
+            onTap: () => widget.onNavigateToLawyers(null),
             readOnly: true,
             decoration: InputDecoration(
-              hintText: 'Describe your issue or find a lawyer...',
               prefixIcon: const Icon(Icons.search),
               filled: true,
               fillColor: Colors.white,
+              hintText: 'Search lawyers or specializations',
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide.none,
               ),
             ),
+            style: const TextStyle(
+              color: AppTheme.textPrimary,
+            ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLegalBotCard(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppTheme.accentBlue, AppTheme.primaryBlue],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  Icons.chat_bubble_outline,
-                  color: Colors.white,
-                  size: 32,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Chat with LegalBot',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Get instant answers to your legal questions',
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.9),
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+          const SizedBox(height: 4),
+          Text(
+            'Get instant answers to your legal questions',
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.9),
+              fontSize: 14,
+            ),
           ),
           const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: onNavigateToChatbot,
+              onPressed: widget.onNavigateToChatbot,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white,
                 foregroundColor: AppTheme.primaryBlue,
@@ -218,26 +199,14 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildCategoriesSection(BuildContext context) {
+  Widget _buildCategoriesSection(BuildContext context, WidgetRef ref) {
     final categories = [
-      {
-        'icon': Icons.security,
-        'label': 'Criminal',
-        'color': AppTheme.primaryBlue,
-      },
-      {'icon': Icons.balance, 'label': 'Civil', 'color': AppTheme.accentBlue},
-      {'icon': Icons.people, 'label': 'Family', 'color': AppTheme.primaryBlue},
-      {'icon': Icons.home, 'label': 'Property', 'color': AppTheme.accentBlue},
-      {
-        'icon': Icons.business,
-        'label': 'Corporate',
-        'color': AppTheme.primaryBlue,
-      },
-      {
-        'icon': Icons.account_balance,
-        'label': 'Tax',
-        'color': AppTheme.accentBlue,
-      },
+      {'icon': Icons.security, 'label': 'Criminal'},
+      {'icon': Icons.balance, 'label': 'Civil'},
+      {'icon': Icons.people, 'label': 'Family'},
+      {'icon': Icons.home, 'label': 'Property'},
+      {'icon': Icons.business, 'label': 'Corporate'},
+      {'icon': Icons.account_balance, 'label': 'Tax'},
     ];
 
     return Column(
@@ -251,7 +220,7 @@ class HomeScreen extends StatelessWidget {
               style: Theme.of(context).textTheme.titleLarge,
             ),
             TextButton(
-              onPressed: onNavigateToLawyers,
+              onPressed: () => widget.onNavigateToLawyers(null),
               child: const Text('View All'),
             ),
           ],
@@ -269,8 +238,10 @@ class HomeScreen extends StatelessWidget {
           itemCount: categories.length,
           itemBuilder: (context, index) {
             final category = categories[index];
+            final icon = category['icon'] as IconData;
+            final label = category['label'] as String;
             return InkWell(
-              onTap: onNavigateToLawyers,
+              onTap: () => widget.onNavigateToLawyers(null),
               borderRadius: BorderRadius.circular(16),
               child: Container(
                 decoration: BoxDecoration(
@@ -284,20 +255,17 @@ class HomeScreen extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: (category['color'] as Color).withOpacity(0.1),
+                        color: AppTheme.primaryBlue.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
-                        category['icon'] as IconData,
-                        color: category['color'] as Color,
+                        icon,
+                        color: AppTheme.primaryBlue,
                         size: 24,
                       ),
                     ),
                     const SizedBox(height: 8),
-                    Text(
-                      category['label'] as String,
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
+                    Text(label, style: Theme.of(context).textTheme.bodyMedium),
                   ],
                 ),
               ),
@@ -308,51 +276,232 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildUpcomingConsultations(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Text(
-              'Upcoming Consultations',
-              style: Theme.of(context).textTheme.titleLarge,
+  Widget _buildLegalBotCard(BuildContext context, WidgetRef ref) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.borderColor),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'LegalBot',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                    'Get instant legal answers powered by our assistant.'),
+              ],
             ),
-            const SizedBox(width: 8),
-            const Icon(
-              Icons.calendar_today,
-              size: 20,
-              color: AppTheme.textSecondary,
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        _buildConsultationCard(
-          'Dr. Sarah Johnson',
-          'Criminal Law',
-          'Oct 12, 2025',
-          '10:00 AM',
-          'Video Call',
-        ),
-        const SizedBox(height: 12),
-        _buildConsultationCard(
-          'Mr. Michael Chen',
-          'Property Law',
-          'Oct 14, 2025',
-          '2:30 PM',
-          'Chat',
-        ),
-      ],
+          ),
+          ElevatedButton(
+            onPressed: widget.onNavigateToChatbot,
+            child: const Text('Chat'),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildConsultationCard(
-    String lawyer,
-    String specialization,
-    String date,
-    String time,
-    String type,
-  ) {
+  Widget _buildUpcomingConsultations(BuildContext context) {
+    // Get current user email from auth provider
+    final authState = ref.watch(authProvider);
+    final userEmail = authState.user?.email;
+
+    if (userEmail == null || userEmail.isEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'Upcoming Consultations',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(width: 8),
+              const Icon(
+                Icons.calendar_today,
+                size: 20,
+                color: AppTheme.textSecondary,
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          const Text('Not logged in'),
+        ],
+      );
+    }
+
+    // Fetch user appointments
+    final appointmentsAsync = ref.watch(userAppointmentsProvider(userEmail));
+
+    return appointmentsAsync.when(
+      loading: () => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'Upcoming Consultations',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(width: 8),
+              const Icon(
+                Icons.calendar_today,
+                size: 20,
+                color: AppTheme.textSecondary,
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          const Center(child: CircularProgressIndicator()),
+        ],
+      ),
+      error: (error, stack) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'Upcoming Consultations',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(width: 8),
+              const Icon(
+                Icons.calendar_today,
+                size: 20,
+                color: AppTheme.textSecondary,
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          const Text('Error loading consultations'),
+        ],
+      ),
+      data: (appointments) {
+        if (appointments.isEmpty) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    'Upcoming Consultations',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(width: 8),
+                  const Icon(
+                    Icons.calendar_today,
+                    size: 20,
+                    color: AppTheme.textSecondary,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'No upcoming consultations',
+                style: TextStyle(color: AppTheme.textSecondary),
+              ),
+            ],
+          );
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(
+                  'Upcoming Consultations',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(width: 8),
+                const Icon(
+                  Icons.calendar_today,
+                  size: 20,
+                  color: AppTheme.textSecondary,
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            ...appointments.asMap().entries.map((entry) {
+              final index = entry.key;
+              final appointment = entry.value as Map<String, dynamic>;
+
+              if (index > 0) {
+                return Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: _buildConsultationCard(appointment),
+                );
+              }
+              return _buildConsultationCard(appointment);
+            }),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildConsultationCard(Map<String, dynamic> appointment) {
+    // Extract appointment data
+    final lawyerEmail = appointment['lawyer_email'] ?? 'Unknown';
+    final lawyerFullName = appointment['lawyer_full_name'] ??
+        lawyerEmail.split('@').first; // Fallback to email name if not available
+    final caseType = appointment['case_type'] ?? 'Legal Consultation';
+    final consultationType = appointment['consultation_type'] ?? 'Scheduled';
+    final date = appointment['date'] ?? '';
+    final startTime = appointment['start_time'] ?? '';
+    final endTime = appointment['end_time'] ?? '';
+
+    // Format lawyer name properly (capitalize first letter of each word)
+    String lawyerName = lawyerFullName;
+    if (lawyerName.contains('_')) {
+      lawyerName = lawyerName
+          .replaceAll('_', ' ')
+          .split(' ')
+          .map((word) => word.isNotEmpty
+              ? word[0].toUpperCase() + word.substring(1).toLowerCase()
+              : '')
+          .join(' ');
+    }
+
+    // Format date if it's a string (ISO format)
+    String formattedDate = date;
+    try {
+      if (date is String && date.isNotEmpty) {
+        final parsedDate = DateTime.parse(date);
+        formattedDate =
+            '${_monthName(parsedDate.month)} ${parsedDate.day}, ${parsedDate.year}';
+      }
+    } catch (e) {
+      formattedDate = date.toString();
+    }
+
+    // Format start and end times with AM/PM
+    String formattedTimeRange = '$startTime - $endTime';
+    try {
+      if (startTime.isNotEmpty && endTime.isNotEmpty) {
+        final startTimeParsed = _parseTime(startTime);
+        final endTimeParsed = _parseTime(endTime);
+        formattedTimeRange = '$startTimeParsed - $endTimeParsed';
+      }
+    } catch (e) {
+      formattedTimeRange = '$startTime - $endTime';
+    }
+
+    // Format consultation type nicely
+    String displayConsultationType = consultationType;
+    if (consultationType.isNotEmpty) {
+      displayConsultationType = consultationType[0].toUpperCase() +
+          consultationType.substring(1).toLowerCase();
+    }
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -368,7 +517,10 @@ class HomeScreen extends StatelessWidget {
                 radius: 24,
                 backgroundColor: AppTheme.accentBlue,
                 child: Text(
-                  lawyer.split(' ').map((e) => e[0]).join(),
+                  lawyerName
+                      .split(' ')
+                      .map((e) => e.isNotEmpty ? e[0].toUpperCase() : '')
+                      .join(),
                   style: const TextStyle(color: Colors.white),
                 ),
               ),
@@ -378,7 +530,7 @@ class HomeScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      lawyer,
+                      lawyerName,
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -386,7 +538,7 @@ class HomeScreen extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      specialization,
+                      caseType,
                       style: const TextStyle(
                         fontSize: 14,
                         color: AppTheme.textSecondary,
@@ -397,16 +549,31 @@ class HomeScreen extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(
-                '$date • $time',
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: AppTheme.textSecondary,
-                ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    formattedDate,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    formattedTimeRange,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                ],
               ),
               Container(
                 padding: const EdgeInsets.symmetric(
@@ -418,7 +585,7 @@ class HomeScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  type,
+                  displayConsultationType,
                   style: const TextStyle(
                     fontSize: 12,
                     color: AppTheme.primaryBlue,
@@ -450,15 +617,16 @@ class HomeScreen extends StatelessWidget {
                 Icons.balance,
                 'Lawyers',
                 false,
-                onNavigateToLawyers,
+                () => widget.onNavigateToLawyers(null),
               ),
               _buildFloatingChatButton(),
-              _buildNavItem(Icons.calendar_today, 'Sessions', false, () {}),
+              _buildNavItem(Icons.calendar_today, 'Sessions', false,
+                  widget.onNavigateToSessions),
               _buildNavItem(
                 Icons.person_outline,
                 'Profile',
                 false,
-                onNavigateToProfile,
+                widget.onNavigateToProfile,
               ),
             ],
           ),
@@ -499,10 +667,46 @@ class HomeScreen extends StatelessWidget {
     return Transform.translate(
       offset: const Offset(0, -20),
       child: FloatingActionButton(
-        onPressed: onNavigateToChatbot,
+        onPressed: widget.onNavigateToChatbot,
         backgroundColor: AppTheme.primaryBlue,
         child: const Icon(Icons.chat_bubble_outline, color: Colors.white),
       ),
     );
+  }
+
+  String _parseTime(String timeStr) {
+    try {
+      // Parse time string in HH:mm format
+      final parts = timeStr.split(':');
+      if (parts.length != 2) return timeStr;
+
+      final hour = int.parse(parts[0]);
+      final minute = int.parse(parts[1]);
+
+      final isAM = hour < 12;
+      final displayHour = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+
+      return '$displayHour:${minute.toString().padLeft(2, '0')} ${isAM ? 'AM' : 'PM'}';
+    } catch (e) {
+      return timeStr;
+    }
+  }
+
+  String _monthName(int month) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
+    ];
+    return months[month - 1];
   }
 }

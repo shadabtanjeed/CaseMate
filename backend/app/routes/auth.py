@@ -1,8 +1,13 @@
 #routes/auth.py
 from fastapi import APIRouter, Depends, HTTPException, status
 from ..schemas.user import (
-    UserRegister, UserLogin, UserResponse,
-    PasswordResetRequest, PasswordReset, PasswordChange
+    UserRegister,
+    UserLogin,
+    UserResponse,
+    PasswordResetRequest,
+    PasswordReset,
+    PasswordChange,
+    VerifyResetCode,
 )
 from ..schemas.token import Token, RefreshTokenRequest
 from ..services.auth_service import auth_service
@@ -13,7 +18,9 @@ from ..models.user import UserInDB
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
-@router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED
+)
 async def register(user_data: UserRegister):
     """Register a new user or lawyer"""
     user = await auth_service.register_user(user_data)
@@ -28,14 +35,15 @@ async def register(user_data: UserRegister):
         created_at=user.created_at,
         phone=user.phone,
         location=user.location,
-    education=user.education,
-    achievements=user.achievements,
+        education=user.education,
+        achievements=user.achievements,
         license_id=user.license_id,
         specialization=user.specialization,
         years_of_experience=user.years_of_experience,
         bio=user.bio,
         rating=user.rating,
         total_cases=user.total_cases,
+        consultation_fee=user.consultation_fee,
     )
 
 
@@ -72,7 +80,9 @@ async def refresh_token(token_data: RefreshTokenRequest):
 
 
 @router.get("/me", response_model=UserResponse)
-async def get_current_user_info(current_user: UserInDB = Depends(get_current_active_user)):
+async def get_current_user_info(
+    current_user: UserInDB = Depends(get_current_active_user),
+):
     """Get current user information"""
     return UserResponse(
         id=str(current_user.id),
@@ -85,47 +95,51 @@ async def get_current_user_info(current_user: UserInDB = Depends(get_current_act
         created_at=current_user.created_at,
         phone=current_user.phone,
         location=current_user.location,
-    education=current_user.education,
-    achievements=current_user.achievements,
+        education=current_user.education,
+        achievements=current_user.achievements,
         license_id=current_user.license_id,
         specialization=current_user.specialization,
         years_of_experience=current_user.years_of_experience,
         bio=current_user.bio,
         rating=current_user.rating,
         total_cases=current_user.total_cases,
+        consultation_fee=current_user.consultation_fee,
     )
 
 
 @router.post("/password/change")
 async def change_password(
     password_data: PasswordChange,
-    current_user: UserInDB = Depends(get_current_active_user)
+    current_user: UserInDB = Depends(get_current_active_user),
 ):
     """Change password for authenticated user"""
     await auth_service.change_password(
-        str(current_user.id),
-        password_data.old_password,
-        password_data.new_password
+        str(current_user.id), password_data.old_password, password_data.new_password
     )
     return {"message": "Password changed successfully"}
 
 
-@router.post("/password/forgot")
-async def forgot_password(request: PasswordResetRequest):
+@router.post("/password/request-reset")
+async def request_password_reset(request: PasswordResetRequest):
     """Request password reset - sends 6-digit code to email"""
     await auth_service.request_password_reset(request.email)
     return {
         "message": "If the email exists, a verification code has been sent",
-        "expires_in_minutes": 15
+        "expires_in_minutes": 15,
     }
+
+
+@router.post("/password/verify-code")
+async def verify_reset_code(verify_data: VerifyResetCode):
+    """Verify the reset code"""
+    await auth_service.verify_reset_code(verify_data.email, verify_data.code)
+    return {"message": "Code verified successfully", "email": verify_data.email}
 
 
 @router.post("/password/reset")
 async def reset_password(reset_data: PasswordReset):
     """Reset password using verification code"""
-    await auth_service.verify_and_reset_password(
-        reset_data.email,
-        reset_data.code,
-        reset_data.new_password
+    await auth_service.reset_password_with_code(
+        reset_data.email, reset_data.code, reset_data.new_password
     )
     return {"message": "Password reset successfully"}

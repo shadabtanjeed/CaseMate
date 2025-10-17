@@ -23,9 +23,10 @@ class ApiConstants {
   static const String login = '/auth/login';
   static const String refreshToken = '/auth/refresh';
   static const String getCurrentUser = '/auth/me';
-  static const String requestPasswordReset = '/auth/password-reset/request';
-  static const String confirmPasswordReset = '/auth/password-reset/confirm';
   static const String changePassword = '/auth/password/change';
+  static const String requestPasswordReset = '/auth/password/request-reset';
+  static const String verifyResetPin = '/auth/password/verify-code';
+  static const String resetPassword = '/auth/password/reset';
 
   // Headers
   static const Map<String, String> headers = {

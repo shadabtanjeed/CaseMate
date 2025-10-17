@@ -10,16 +10,18 @@ import 'features/profile/presentation/screens/home_screen.dart';
 import 'features/chat/presentation/screens/chatbot_screen.dart';
 import 'features/lawyer/presentation/screens/lawyer_discovery_screen.dart';
 import 'features/lawyer/presentation/screens/lawyer_detail_screen.dart';
-import 'features/booking/presentation/screens/booking_screen.dart';
 import 'features/video_call/presentation/screens/video_call_screen.dart';
 import 'features/profile/presentation/screens/profile_screen.dart';
 import 'features/notifications/presentation/screens/notifications_screen.dart';
 import 'features/lawyer/lawyer_home_screen.dart';
 import 'features/lawyer/lawyer_clients_screen.dart';
 import 'features/lawyer/lawyer_schedule_screen.dart';
+import 'features/auth/data/datasources/auth_local_datasources.dart';
+import 'features/auth/data/models/user_model.dart';
 import 'features/lawyer/lawyer_cases_screen.dart';
 import 'features/lawyer/lawyer_reviews_screen.dart';
 import 'features/lawyer/lawyer_earnings_screen.dart';
+import 'features/profile/presentation/screens/userpovsessions_screen.dart';
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
@@ -59,11 +61,23 @@ class AppNavigator extends StatefulWidget {
 class _AppNavigatorState extends State<AppNavigator> {
   String _currentScreen = 'splash';
   String _selectedLawyerId = '';
+  bool _openAvailabilityTab = false;
+  String? _selectedSpecialization;
 
   void _navigateTo(String screen) {
     setState(() {
       _currentScreen = screen;
     });
+    // debug trace so we can see navigation activity in logs
+    debugPrint('[AppNavigator] navigateTo: $_currentScreen');
+  }
+
+  void _navigateToLawyersWithSpecialization(String? spec) {
+    setState(() {
+      _selectedSpecialization = spec;
+      _currentScreen = 'lawyers';
+    });
+    debugPrint('[AppNavigator] navigateToLawyersWithSpecialization: $_selectedSpecialization');
   }
 
   void _handleLogin([String? role]) {
@@ -75,6 +89,7 @@ class _AppNavigatorState extends State<AppNavigator> {
       }
     });
     _showSnackbar('Welcome back!');
+    debugPrint('[AppNavigator] handleLogin -> $_currentScreen (role=$role)');
   }
 
   void _handleRegister() {
@@ -82,6 +97,7 @@ class _AppNavigatorState extends State<AppNavigator> {
       _currentScreen = 'login';
     });
     _showSnackbar('Account created successfully! Please login.');
+    debugPrint('[AppNavigator] handleRegister -> login');
   }
 
   void _handleLogout() {
@@ -89,20 +105,26 @@ class _AppNavigatorState extends State<AppNavigator> {
       _currentScreen = 'login';
     });
     _showSnackbar('Logged out successfully');
+    debugPrint('[AppNavigator] handleLogout -> login');
   }
 
   void _handleSelectLawyer(String lawyerId) {
     setState(() {
       _selectedLawyerId = lawyerId;
       _currentScreen = 'lawyer-detail';
+      _openAvailabilityTab = false;
     });
+    debugPrint('[AppNavigator] handleSelectLawyer -> $_selectedLawyerId');
   }
 
-  void _handleBookingConfirm() {
+  void _handleBookNowLawyer(String lawyerId) {
     setState(() {
-      _currentScreen = 'home';
+      _selectedLawyerId = lawyerId;
+      _currentScreen = 'lawyer-detail';
+      _openAvailabilityTab = true;
     });
     _showSnackbar('Booking confirmed successfully!');
+    debugPrint('[AppNavigator] handleBookingConfirm -> home');
   }
 
   void _handleEndCall() {
@@ -110,6 +132,7 @@ class _AppNavigatorState extends State<AppNavigator> {
       _currentScreen = 'home';
     });
     _showSnackbar('Call ended');
+    debugPrint('[AppNavigator] handleEndCall -> home');
   }
 
   void _showSnackbar(String message) {
@@ -118,6 +141,7 @@ class _AppNavigatorState extends State<AppNavigator> {
         content: Text(message),
         behavior: SnackBarBehavior.fixed,
         backgroundColor: AppTheme.primaryBlue,
+        duration: const Duration(milliseconds: 1500),
       ),
     );
   }
@@ -145,7 +169,8 @@ class _AppNavigatorState extends State<AppNavigator> {
       case 'home':
         return HomeScreen(
           onNavigateToChatbot: () => _navigateTo('chatbot'),
-          onNavigateToLawyers: () => _navigateTo('lawyers'),
+          onNavigateToLawyers: (String? spec) => _navigateToLawyersWithSpecialization(spec),
+          onNavigateToSessions: () => _navigateTo('sessions'),
           onNavigateToProfile: () => _navigateTo('profile'),
           onNavigateToNotifications: () => _navigateTo('notifications'),
         );
@@ -160,19 +185,19 @@ class _AppNavigatorState extends State<AppNavigator> {
         return LawyerDiscoveryScreen(
           onBack: () => _navigateTo('home'),
           onSelectLawyer: _handleSelectLawyer,
+          onBookNowLawyer: _handleBookNowLawyer,
+          initialSpecialization: _selectedSpecialization,
         );
 
       case 'lawyer-detail':
         return LawyerDetailScreen(
           lawyerId: _selectedLawyerId,
-          onBack: () => _navigateTo('lawyers'),
+          onBack: () {
+            _openAvailabilityTab = false;
+            _navigateTo('lawyers');
+          },
           onBookConsultation: () => _navigateTo('booking'),
-        );
-
-      case 'booking':
-        return BookingScreen(
-          onBack: () => _navigateTo('lawyer-detail'),
-          onConfirm: _handleBookingConfirm,
+          initialTabIndex: _openAvailabilityTab ? 2 : 0,
         );
 
       case 'video-call':
@@ -199,7 +224,20 @@ class _AppNavigatorState extends State<AppNavigator> {
         return LawyerClientsScreen(onBack: () => _navigateTo('lawyer-home'));
 
       case 'lawyer-schedule':
-        return LawyerScheduleScreen(onBack: () => _navigateTo('lawyer-home'));
+        return FutureBuilder<UserModel?>(
+          future: AuthLocalDataSourceImpl().getUser(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState != ConnectionState.done) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            final user = snapshot.data;
+            final email = user?.email ?? '';
+            return LawyerScheduleScreen(
+              onBack: () => _navigateTo('lawyer-home'),
+              currentLawyerEmail: email,
+            );
+          },
+        );
 
       case 'lawyer-cases':
         return LawyerCasesScreen(onBack: () => _navigateTo('lawyer-home'));
@@ -213,6 +251,9 @@ class _AppNavigatorState extends State<AppNavigator> {
       case 'notifications':
         return NotificationsScreen(onBack: () => _navigateTo('home'));
 
+      case 'sessions':
+        return UserPovSessionsScreen(onBack: () => _navigateTo('home'));
+
       default:
         return SplashScreen(onComplete: () => _navigateTo('onboarding'));
     }
@@ -220,8 +261,26 @@ class _AppNavigatorState extends State<AppNavigator> {
 
   @override
   Widget build(BuildContext context) {
+    Widget body;
+    try {
+      body = _buildScreen();
+    } catch (e, st) {
+      // Show a visible error widget instead of a white screen so we can debug
+      final msg = 'Error building screen: $e\n${st.toString().split('\n').take(8).join('\n')}';
+      debugPrint('[AppNavigator] $msg');
+      body = Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Text(
+            msg,
+            style: const TextStyle(color: Colors.red),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
-      body: _buildScreen(),
+      body: body,
       floatingActionButton: FloatingActionButton.small(
         onPressed: () => _showScreenSelector(context),
         backgroundColor: AppTheme.primaryBlue,
@@ -252,11 +311,11 @@ class _AppNavigatorState extends State<AppNavigator> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
+                const Row(
                   children: [
-                    const Icon(Icons.navigation, color: AppTheme.primaryBlue),
-                    const SizedBox(width: 8),
-                    const Text(
+                    Icon(Icons.navigation, color: AppTheme.primaryBlue),
+                    SizedBox(width: 8),
+                    Text(
                       'Navigate to Screen',
                       style:
                           TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
