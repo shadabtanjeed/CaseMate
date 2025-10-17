@@ -934,7 +934,7 @@ class _LawyerScheduleScreenState extends State<LawyerScheduleScreen>
                     _hasUnsavedChanges = true;
                   });
                 },
-                activeThumbColor: AppTheme.primaryBlue,
+                activeTrackColor: AppTheme.primaryBlue,
               ),
             ],
           ),

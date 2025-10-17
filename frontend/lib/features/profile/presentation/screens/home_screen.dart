@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../booking/presentation/providers/appointment_provider.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../lawyer/presentation/providers/lawyer_provider.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   final VoidCallback onNavigateToChatbot;
@@ -24,12 +25,43 @@ class HomeScreen extends ConsumerStatefulWidget {
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends ConsumerState<HomeScreen> {
+class _HomeScreenState extends ConsumerState<HomeScreen>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _animController;
+  late final Animation<double> _headerFade;
+  late final Animation<Offset> _headerSlide;
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     // Refresh appointments when screen is shown
     _refreshAppointments();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+
+    _headerFade = CurvedAnimation(
+      parent: _animController,
+      curve: const Interval(0.0, 0.25, curve: Curves.easeOut),
+    );
+    _headerSlide = Tween<Offset>(begin: const Offset(0, -0.08), end: Offset.zero)
+        .animate(CurvedAnimation(parent: _animController, curve: Curves.easeOut));
+
+    // start the animation after first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _animController.forward();
+    });
+  }
+
+  @override
+  void dispose() {
+    _animController.dispose();
+    super.dispose();
   }
 
   void _refreshAppointments() {
@@ -76,201 +108,230 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget _buildHeader(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authProvider);
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [AppTheme.primaryBlue, AppTheme.accentBlue],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(24),
-          bottomRight: Radius.circular(24),
-        ),
-      ),
-      child: Column(
-        children: [
-          Row(
+    return FadeTransition(
+      opacity: _headerFade,
+      child: SlideTransition(
+        position: _headerSlide,
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [AppTheme.primaryBlue, AppTheme.accentBlue],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.only(
+              bottomLeft: Radius.circular(24),
+              bottomRight: Radius.circular(24),
+            ),
+          ),
+          child: Column(
             children: [
-              const CircleAvatar(
-                radius: 24,
-                backgroundColor: Colors.white,
-                child: Text(
-                  'JD',
-                  style: TextStyle(color: AppTheme.primaryBlue),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Hello,',
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodyMedium
-                          ?.copyWith(color: Colors.white70),
-                    ),
-                    Text(
-                      authState.user?.fullName ?? 'User',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Stack(
+              Row(
                 children: [
-                  IconButton(
-                    onPressed: widget.onNavigateToNotifications,
-                    icon: const Icon(
-                      Icons.notifications_outlined,
-                      color: Colors.white,
+                  const CircleAvatar(
+                    radius: 24,
+                    backgroundColor: Colors.white,
+                    child: Text(
+                      'JD',
+                      style: TextStyle(color: AppTheme.primaryBlue),
                     ),
                   ),
-                  Positioned(
-                    right: 8,
-                    top: 8,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(
-                        color: Colors.red,
-                        shape: BoxShape.circle,
-                      ),
-                      constraints: const BoxConstraints(
-                        minWidth: 16,
-                        minHeight: 16,
-                      ),
-                      child: const Text(
-                        '3',
-                        style: TextStyle(color: Colors.white, fontSize: 10),
-                      ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Hello,',
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodyMedium
+                              ?.copyWith(color: Colors.white70),
+                        ),
+                        Text(
+                          authState.user?.fullName ?? 'User',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ),
+                  ),
+                  Stack(
+                    children: [
+                      IconButton(
+                        onPressed: widget.onNavigateToNotifications,
+                        icon: const Icon(
+                          Icons.notifications_outlined,
+                          color: Colors.white,
+                        ),
+                      ),
+                      Positioned(
+                        right: 8,
+                        top: 8,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(
+                            color: Colors.red,
+                            shape: BoxShape.circle,
+                          ),
+                          constraints: const BoxConstraints(
+                            minWidth: 16,
+                            minHeight: 16,
+                          ),
+                          child: const Text(
+                            '3',
+                            style: TextStyle(color: Colors.white, fontSize: 10),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
+              const SizedBox(height: 16),
+              TextField(
+                onTap: () => widget.onNavigateToLawyers(null),
+                readOnly: true,
+                decoration: InputDecoration(
+                  prefixIcon: const Icon(Icons.search),
+                  filled: true,
+                  fillColor: Colors.white,
+                  hintText: 'Search lawyers or specializations',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+                style: const TextStyle(
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Get instant answers to your legal questions',
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.9),
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: widget.onNavigateToChatbot,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: AppTheme.primaryBlue,
+                  ),
+                  child: const Text('Start Chat'),
+                ),
+              ),
             ],
           ),
-          const SizedBox(height: 16),
-          TextField(
-            onTap: () => widget.onNavigateToLawyers(null),
-            readOnly: true,
-            decoration: InputDecoration(
-              prefixIcon: const Icon(Icons.search),
-              filled: true,
-              fillColor: Colors.white,
-              hintText: 'Search lawyers or specializations',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
-            ),
-            style: const TextStyle(
-              color: AppTheme.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Get instant answers to your legal questions',
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.9),
-              fontSize: 14,
-            ),
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: widget.onNavigateToChatbot,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: AppTheme.primaryBlue,
-              ),
-              child: const Text('Start Chat'),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
 
   Widget _buildCategoriesSection(BuildContext context, WidgetRef ref) {
-    final categories = [
-      {'icon': Icons.security, 'label': 'Criminal'},
-      {'icon': Icons.balance, 'label': 'Civil'},
-      {'icon': Icons.people, 'label': 'Family'},
-      {'icon': Icons.home, 'label': 'Property'},
-      {'icon': Icons.business, 'label': 'Corporate'},
-      {'icon': Icons.account_balance, 'label': 'Tax'},
-    ];
+    final specAsync = ref.watch(lawyerSpecializationsProvider);
+
+    IconData _iconForSpec(String spec) {
+      final key = spec.toLowerCase();
+      if (key.contains('criminal')) return Icons.gavel;
+      if (key.contains('civil')) return Icons.balance;
+      if (key.contains('family')) return Icons.family_restroom;
+      if (key.contains('property') || key.contains('real')) return Icons.home;
+      if (key.contains('corporate') || key.contains('business')) return Icons.business;
+      if (key.contains('tax')) return Icons.account_balance;
+      if (key.contains('immigration')) return Icons.flight_takeoff;
+      if (key.contains('employment') || key.contains('labour')) return Icons.work;
+      // default icon
+      return Icons.school;
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Find Lawyers by Category',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            TextButton(
-              onPressed: () => widget.onNavigateToLawyers(null),
-              child: const Text('View All'),
-            ),
-          ],
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Text(
+            'Find Lawyers by Category',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
         ),
         const SizedBox(height: 16),
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 0.9,
-          ),
-          itemCount: categories.length,
-          itemBuilder: (context, index) {
-            final category = categories[index];
-            final icon = category['icon'] as IconData;
-            final label = category['label'] as String;
-            return InkWell(
-              onTap: () => widget.onNavigateToLawyers(null),
-              borderRadius: BorderRadius.circular(16),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
+        specAsync.when(
+          data: (specs) {
+            if (specs.isEmpty) return const Center(child: Text('No categories'));
+            return GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                childAspectRatio: 0.9,
+              ),
+              itemCount: specs.length,
+              itemBuilder: (context, index) {
+                final label = specs[index];
+                final icon = _iconForSpec(label);
+                // compute stagger interval for this tile
+                final start = 0.25 + (index * 0.04);
+                final end = (start + 0.4).clamp(0.0, 1.0);
+                final tileAnim = CurvedAnimation(
+                  parent: _animController,
+                  curve: Interval(start, end, curve: Curves.easeOut),
+                );
+                return InkWell(
+                  onTap: () => widget.onNavigateToLawyers(label),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppTheme.borderColor),
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppTheme.primaryBlue.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(
-                        icon,
-                        color: AppTheme.primaryBlue,
-                        size: 24,
+                  child: FadeTransition(
+                    opacity: tileAnim,
+                    child: SlideTransition(
+                      position: Tween<Offset>(
+                        begin: const Offset(0, 0.06),
+                        end: Offset.zero,
+                      ).animate(tileAnim),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: AppTheme.borderColor),
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: AppTheme.primaryBlue.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Icon(
+                                icon,
+                                color: AppTheme.primaryBlue,
+                                size: 24,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(label, style: Theme.of(context).textTheme.bodyMedium),
+                          ],
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Text(label, style: Theme.of(context).textTheme.bodyMedium),
-                  ],
-                ),
-              ),
+                  ),
+                );
+              },
             );
           },
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, st) => Center(child: Text('Failed to load categories')),
         ),
       ],
     );
