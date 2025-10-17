@@ -1,3 +1,5 @@
+//lawyer_entity.dart
+
 class LawyerEntity {
   final String id;
   final String name;
