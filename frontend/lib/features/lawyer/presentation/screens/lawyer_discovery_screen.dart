@@ -341,11 +341,14 @@ class _LawyerDiscoveryScreenState extends ConsumerState<LawyerDiscoveryScreen> {
             const SizedBox(height: 8),
             specAsync.when(
               data: (specs) {
+                final safeInitial = specs.contains(_selectedSpecialization)
+                    ? _selectedSpecialization
+                    : null;
                 return DropdownButtonFormField<String>(
                   decoration: const InputDecoration(
                     border: OutlineInputBorder(),
                   ),
-                  initialValue: _selectedSpecialization,
+                  value: safeInitial,
                   items: specs
                       .map((s) => DropdownMenuItem(value: s, child: Text(s)))
                       .toList(),
