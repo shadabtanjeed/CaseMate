@@ -54,3 +54,74 @@ final userAppointmentsProvider =
     return [];
   }
 });
+
+// Get lawyer appointments provider
+final lawyerAppointmentsProvider =
+    FutureProvider.family<List<dynamic>, String>((ref, lawyerEmail) async {
+  final apiClient = ref.watch(apiClientProvider);
+  try {
+    final response = await apiClient.get('/appointments/lawyer/$lawyerEmail');
+    return response['appointments'] as List<dynamic>? ?? [];
+  } catch (e) {
+    return [];
+  }
+});
+
+// Get next appointment for lawyer provider
+final nextAppointmentProvider =
+    FutureProvider.family<Map<String, dynamic>?, String>(
+        (ref, lawyerEmail) async {
+  final appointments =
+      await ref.watch(lawyerAppointmentsProvider(lawyerEmail).future);
+
+  if (appointments.isEmpty) {
+    return null;
+  }
+
+  // Filter unfinished appointments and sort by date
+  final upcomingAppointments = appointments
+      .whereType<Map<String, dynamic>>()
+      .where((apt) => apt['is_finished'] != true)
+      .toList();
+
+  if (upcomingAppointments.isEmpty) {
+    return null;
+  }
+
+  // Sort by date
+  upcomingAppointments.sort((a, b) {
+    final dateA = a['date'] is String ? DateTime.parse(a['date']) : a['date'];
+    final dateB = b['date'] is String ? DateTime.parse(b['date']) : b['date'];
+    return dateA.compareTo(dateB);
+  });
+
+  return upcomingAppointments.first;
+});
+
+// Get upcoming appointments for lawyer provider (limited)
+final upcomingAppointmentsProvider =
+    FutureProvider.family<List<Map<String, dynamic>>, String>(
+        (ref, lawyerEmail) async {
+  final appointments =
+      await ref.watch(lawyerAppointmentsProvider(lawyerEmail).future);
+
+  if (appointments.isEmpty) {
+    return [];
+  }
+
+  // Filter unfinished appointments and sort by date
+  final upcomingAppointments = appointments
+      .whereType<Map<String, dynamic>>()
+      .where((apt) => apt['is_finished'] != true)
+      .toList();
+
+  // Sort by date
+  upcomingAppointments.sort((a, b) {
+    final dateA = a['date'] is String ? DateTime.parse(a['date']) : a['date'];
+    final dateB = b['date'] is String ? DateTime.parse(b['date']) : b['date'];
+    return dateA.compareTo(dateB);
+  });
+
+  // Return top 2 appointments
+  return upcomingAppointments.take(2).toList();
+});

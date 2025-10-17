@@ -152,6 +152,7 @@ class AppointmentService:
         try:
             db = self.get_db()
             appointments = db["appointments"]
+            users = db["users"]
 
             def _find():
                 return list(appointments.find({"lawyer_email": lawyer_email}))
@@ -159,6 +160,18 @@ class AppointmentService:
             docs = await asyncio.to_thread(_find)
             for doc in docs:
                 doc["_id"] = str(doc.get("_id", ""))
+                # Fetch user's full_name from users collection
+                user_email = doc.get("user_email")
+                if user_email:
+                    user = await asyncio.to_thread(
+                        lambda: users.find_one({"email": user_email})
+                    )
+                    if user:
+                        doc["user_full_name"] = user.get("full_name", "Unknown")
+                    else:
+                        doc["user_full_name"] = "Unknown"
+                else:
+                    doc["user_full_name"] = "Unknown"
             return docs
         except Exception as e:
             self.logger.error(f"Error getting lawyer appointments: {str(e)}")
@@ -282,6 +295,58 @@ class AppointmentService:
             return success
         except Exception as e:
             self.logger.error(f"Error updating appointment: {str(e)}")
+            raise
+
+    async def get_next_appointment(self, lawyer_email: str):
+        """Get the next (earliest) upcoming appointment for a lawyer"""
+        try:
+            db = self.get_db()
+            appointments = db["appointments"]
+
+            def _find():
+                return appointments.find_one(
+                    {
+                        "lawyer_email": lawyer_email,
+                        "date": {"$gte": datetime.utcnow()},
+                        "is_finished": False,
+                    },
+                    sort=[("date", 1)],
+                )
+
+            doc = await asyncio.to_thread(_find)
+            if doc:
+                doc["_id"] = str(doc.get("_id", ""))
+            return doc
+        except Exception as e:
+            self.logger.error(f"Error getting next appointment: {str(e)}")
+            raise
+
+    async def get_upcoming_appointments(self, lawyer_email: str, limit: int = None):
+        """Get all upcoming appointments for a lawyer sorted by date"""
+        try:
+            db = self.get_db()
+            appointments = db["appointments"]
+
+            def _find():
+                query = appointments.find(
+                    {
+                        "lawyer_email": lawyer_email,
+                        "date": {"$gte": datetime.utcnow()},
+                        "is_finished": False,
+                    }
+                ).sort("date", 1)
+
+                if limit:
+                    query = query.limit(limit)
+
+                return list(query)
+
+            docs = await asyncio.to_thread(_find)
+            for doc in docs:
+                doc["_id"] = str(doc.get("_id", ""))
+            return docs
+        except Exception as e:
+            self.logger.error(f"Error getting upcoming appointments: {str(e)}")
             raise
 
 
