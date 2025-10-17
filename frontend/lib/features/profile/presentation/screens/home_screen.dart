@@ -620,7 +620,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 () => widget.onNavigateToLawyers(null),
               ),
               _buildFloatingChatButton(),
-              _buildNavItem(Icons.calendar_today, 'Sessions', false, onNavigateToSessions),
+              _buildNavItem(Icons.calendar_today, 'Sessions', false,
+                  widget.onNavigateToSessions),
               _buildNavItem(
                 Icons.person_outline,
                 'Profile',

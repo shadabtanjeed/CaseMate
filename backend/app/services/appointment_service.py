@@ -1,6 +1,4 @@
-appointment_service = AppointmentService()
-
-from typing import List
+from typing import List, Optional
 from ..database import get_database
 from datetime import datetime
 import uuid
@@ -337,7 +335,9 @@ class AppointmentService:
             self.logger.error(f"Error getting next appointment: {str(e)}")
             raise
 
-    async def get_upcoming_appointments(self, lawyer_email: str, limit: int = None):
+    async def get_upcoming_appointments(
+        self, lawyer_email: str, limit: Optional[int] = None
+    ):
         """Get all upcoming appointments for a lawyer sorted by date"""
         try:
             db = self.get_db()
@@ -363,6 +363,30 @@ class AppointmentService:
             return docs
         except Exception as e:
             self.logger.error(f"Error getting upcoming appointments: {str(e)}")
+            raise
+
+    async def get_appointments_for_user(self, user_email: str) -> List[dict]:
+        db = self.get_db()
+
+        def _query():
+            # Return all appointments where user_email matches
+            cursor = (
+                db["appointments"].find({"user_email": user_email}).sort([("date", -1)])
+            )
+            return list(cursor)
+
+        try:
+            docs = await asyncio.to_thread(_query)
+            # ensure types are JSON-serializable
+            for d in docs:
+                if "_id" in d:
+                    try:
+                        d["_id"] = str(d["_id"])
+                    except Exception:
+                        pass
+            return docs
+        except Exception:
+            logging.exception("Error fetching appointments for user %s", user_email)
             raise
 
 
@@ -443,27 +467,32 @@ class CaseService:
             self.logger.error(f"Error updating case: {str(e)}")
             raise
 
-         async def get_appointments_for_user(self, user_email: str) -> List[dict]:
+    # Singleton instances
+
+    async def get_appointments_for_user(self, user_email: str) -> List[dict]:
         db = get_database()
 
         def _query():
             # Return all appointments where user_email matches
-            cursor = db['appointments'].find({'user_email': user_email}).sort([('date', -1)])
+            cursor = (
+                db["appointments"].find({"user_email": user_email}).sort([("date", -1)])
+            )
             return list(cursor)
 
         try:
             docs = await asyncio.to_thread(_query)
             # ensure types are JSON-serializable
             for d in docs:
-                if '_id' in d:
+                if "_id" in d:
                     try:
-                        d['_id'] = str(d['_id'])
+                        d["_id"] = str(d["_id"])
                     except Exception:
                         pass
             return docs
         except Exception:
-            logging.exception('Error fetching appointments for user %s', user_email)
+            logging.exception("Error fetching appointments for user %s", user_email)
             raise
+
 
 # Singleton instances
 appointment_service = AppointmentService()

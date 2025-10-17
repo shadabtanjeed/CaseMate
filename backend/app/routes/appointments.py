@@ -1,18 +1,21 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List
-from ..services.appointment_service import appointment_service
+from ..services.appointment_service import appointment_service, case_service
 from ..utils.dependencies import get_current_user_email
+from ..schemas.appointment import AppointmentIn, AppointmentOut, CaseIn, CaseOut
 
-router = APIRouter()
+router = APIRouter(prefix="/appointments", tags=["Appointments"])
 
 
-@router.get("/appointments/me")
-async def get_my_appointments(current_user_email: str = Depends(get_current_user_email)):
+@router.get("/me")
+async def get_my_appointments(
+    current_user_email: str = Depends(get_current_user_email),
+):
     """Return appointments for the current user (both upcoming and past)."""
     appts = await appointment_service.get_appointments_for_user(current_user_email)
     # Normalize fields for frontend
     result = []
-    
+
     def _to_epoch_ms(val):
         """Convert various DB date formats to integer milliseconds since epoch.
         Handles datetime, numeric, string, and mongo extended json like
@@ -30,7 +33,7 @@ async def get_my_appointments(current_user_email: str = Depends(get_current_user
             pass
 
         # If date is a string containing JSON (exported extended JSON), try to parse it
-        if isinstance(val, str) and val.strip().startswith('{'):
+        if isinstance(val, str) and val.strip().startswith("{"):
             try:
                 import json
 
@@ -42,11 +45,11 @@ async def get_my_appointments(current_user_email: str = Depends(get_current_user
         # Mongo extended json dict
         if isinstance(val, dict):
             # {'$date': {'$numberLong': '...'}}
-            if '$date' in val:
-                d = val['$date']
-                if isinstance(d, dict) and '$numberLong' in d:
+            if "$date" in val:
+                d = val["$date"]
+                if isinstance(d, dict) and "$numberLong" in d:
                     try:
-                        return int(d['$numberLong'])
+                        return int(d["$numberLong"])
                     except Exception:
                         return None
                 # sometimes $date directly contains number
@@ -55,9 +58,9 @@ async def get_my_appointments(current_user_email: str = Depends(get_current_user
                 except Exception:
                     return None
             # sometimes date stored as {'$numberLong': '...'}
-            if '$numberLong' in val:
+            if "$numberLong" in val:
                 try:
-                    return int(val['$numberLong'])
+                    return int(val["$numberLong"])
                 except Exception:
                     return None
 
@@ -90,16 +93,18 @@ async def get_my_appointments(current_user_email: str = Depends(get_current_user
             db = get_database()
 
             def _fetch_lawyers():
-                cursor = db['lawyers'].find({'email': {'$in': emails}}, {'full_name': 1, 'phone': 1, 'email': 1})
+                cursor = db["lawyers"].find(
+                    {"email": {"$in": emails}}, {"full_name": 1, "phone": 1, "email": 1}
+                )
                 return list(cursor)
 
-            lawyers = await __import__('asyncio').to_thread(_fetch_lawyers)
+            lawyers = await __import__("asyncio").to_thread(_fetch_lawyers)
             for l in lawyers:
                 try:
-                    email = l.get('email')
+                    email = l.get("email")
                     lawyer_map[email] = {
-                        'lawyer_name': l.get('full_name') or '',
-                        'lawyer_phone': l.get('phone') or '',
+                        "lawyer_name": l.get("full_name") or "",
+                        "lawyer_phone": l.get("phone") or "",
                     }
                 except Exception:
                     continue
@@ -107,13 +112,17 @@ async def get_my_appointments(current_user_email: str = Depends(get_current_user
             # If enrichment fails, continue without lawyer details
             import logging
 
-            logging.exception('Error fetching lawyer details for appointments')
+            logging.exception("Error fetching lawyer details for appointments")
 
     for a in appts:
         date_ms = _to_epoch_ms(a.get("date"))
         created_ms = _to_epoch_ms(a.get("created_at"))
         is_finished_raw = a.get("is_finished", False)
-        is_finished = bool(is_finished_raw) if not isinstance(is_finished_raw, str) else (is_finished_raw.lower() == 'true' or is_finished_raw == '1')
+        is_finished = (
+            bool(is_finished_raw)
+            if not isinstance(is_finished_raw, str)
+            else (is_finished_raw.lower() == "true" or is_finished_raw == "1")
+        )
 
         base = {
             "appointment_id": a.get("appointment_id"),
@@ -130,18 +139,13 @@ async def get_my_appointments(current_user_email: str = Depends(get_current_user
         }
 
         # merge lawyer enrichment if available
-        le = lawyer_map.get(a.get('lawyer_email'))
+        le = lawyer_map.get(a.get("lawyer_email"))
         if le:
             base.update(le)
 
         result.append(base)
 
     return {"data": result}
-from fastapi import APIRouter, HTTPException, status, Depends
-from ..schemas.appointment import AppointmentIn, AppointmentOut, CaseIn, CaseOut
-from ..services.appointment_service import appointment_service, case_service
-
-router = APIRouter(prefix="/appointments", tags=["Appointments"])
 
 
 @router.post("/create", response_model=dict)
