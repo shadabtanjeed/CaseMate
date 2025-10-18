@@ -17,6 +17,7 @@ dependencies:
   flutter_riverpod: ^2.4.9
 
   # HTTP & Network
+  image_picker: ^1.0.7
   http: ^1.1.2
 
   # Secure Storage

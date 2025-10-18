@@ -1,3 +1,6 @@
+import 'dart:io';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/api_client.dart';
 import '../../data/datasources/auth_local_datasources.dart';
@@ -13,6 +16,9 @@ import '../../domain/usecases/refresh_token_usecase.dart';
 import '../../domain/usecases/request_password_reset_usecase.dart';
 import '../../domain/usecases/reset_password_usecase.dart';
 import '../../domain/usecases/verify_reset_pin_usecase.dart';
+import '../../../../core/constants/api_constants.dart';
+import 'package:http_parser/http_parser.dart';
+import 'package:http/http.dart' as http;
 
 // Dependencies
 final apiClientProvider = Provider<ApiClient>((ref) => ApiClient());
@@ -338,7 +344,70 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  // ============================================
+  // ADDED: Update Profile Image Method
+  // ============================================
+  // ============================================
+// ADDED: Update Profile Image Method
+// =
   // Clear error
+  // ============================================
+// ADDED: Update Profile Image Method
+// ============================================
+Future<void> updateProfileImage(File imageFile) async {
+  try {
+    final token = await localDataSource.getAccessToken();
+    if (token == null) throw Exception('No authentication token');
+
+    final uri = Uri.parse('${ApiConstants.baseUrl}/auth/users/profile/image');
+    final request = http.MultipartRequest('PUT', uri);
+    
+    request.headers['Authorization'] = 'Bearer $token';
+    
+    // Determine content type based on file extension
+    String extension = imageFile.path.split('.').last.toLowerCase();
+    String type = 'jpeg';
+    if (extension == 'png') type = 'png';
+    if (extension == 'jpg' || extension == 'jpeg') type = 'jpeg';
+    
+    final imageStream = http.ByteStream(imageFile.openRead());
+    final imageLength = await imageFile.length();
+    final multipartFile = http.MultipartFile(
+      'file',
+      imageStream,
+      imageLength,
+      filename: imageFile.path.split('/').last,
+      contentType: MediaType('image', type),
+    );
+    request.files.add(multipartFile);
+
+    state = state.copyWith(isLoading: true);
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      print('🔥 BACKEND RESPONSE: $data');
+      final imageUrl = data['data']['profileImageUrl'];
+      print('🔥 IMAGE URL: $imageUrl');
+      
+      if (state.user != null) {
+        final updatedUser = state.user!.copyWith(profileImageUrl: imageUrl);
+        print('🔥 UPDATED USER: ${updatedUser.profileImageUrl}');
+        state = state.copyWith(
+          user: updatedUser,
+          isLoading: false,
+        );
+      }
+    } else {
+      throw Exception('Failed to upload image: ${response.body}');
+    }
+  } catch (e) {
+    state = state.copyWith(isLoading: false);
+    rethrow;
+  }
+}
+
   void clearError() {
     state = state.copyWith(error: null);
   }
