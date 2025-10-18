@@ -27,6 +27,22 @@ class AppointmentRepository {
     );
   }
 
+  // ADD THIS METHOD 👇
+  Future<Map<String, dynamic>> createTransaction({
+    required String appointmentId,
+    required double userPaidAmount,
+    String? transactionId,
+    String? paymentMethod,
+  }) async {
+    return await remoteDataSource.createTransaction(
+      appointmentId: appointmentId,
+      userPaidAmount: userPaidAmount,
+      transactionId: transactionId,
+      paymentMethod: paymentMethod,
+    );
+  }
+  // END OF NEW METHOD 👆
+
   Future<Map<String, dynamic>> getAppointment(String appointmentId) async {
     return await remoteDataSource.getAppointment(appointmentId);
   }
@@ -40,9 +56,9 @@ class AppointmentRepository {
   }
 
   Future<Map<String, dynamic>> updateAppointmentStatus(
-    String appointmentId,
-    bool isFinished,
-  ) async {
+      String appointmentId,
+      bool isFinished,
+      ) async {
     return await remoteDataSource.updateAppointmentStatus(
       appointmentId,
       isFinished,
@@ -62,9 +78,9 @@ class AppointmentRepository {
   }
 
   Future<Map<String, dynamic>> updateCaseStatus(
-    String caseId,
-    String status,
-  ) async {
+      String caseId,
+      String status,
+      ) async {
     return await remoteDataSource.updateCaseStatus(caseId, status);
   }
 }

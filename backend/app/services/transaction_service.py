@@ -11,6 +11,7 @@ class TransactionService:
     def __init__(self, db: Database):
         self.db = db
         self.collection = db["transactions"]
+        self.wallets_collection = db["wallets"]
 
     def calculate_transaction_breakdown(self, user_paid_amount: float) -> TransactionCalculation:
         """Calculate transaction breakdown without creating a transaction"""
@@ -25,7 +26,7 @@ class TransactionService:
         )
 
     def create_transaction(self, transaction_data: TransactionIn) -> TransactionOut:
-        """Create a new transaction"""
+        """Create a new transaction and credit lawyer wallet"""
 
         # Verify appointment exists
         appointment = self.db["appointments"].find_one(
@@ -57,10 +58,76 @@ class TransactionService:
         # Insert into database
         result = self.collection.insert_one(transaction.to_dict())
 
+        # Credit lawyer wallet
+        lawyer_email = appointment.get("lawyer_email")
+        if lawyer_email:
+            self._credit_lawyer_wallet(lawyer_email, transaction.lawyer_received_amount)
+
+        # Credit platform wallet
+        self._credit_platform_wallet(transaction.platform_fee)
+
         # Retrieve and return
         created_transaction = self.collection.find_one({"_id": result.inserted_id})
 
         return self._to_transaction_out(created_transaction)
+
+    def _credit_lawyer_wallet(self, lawyer_email: str, amount: float):
+        """Credit amount to lawyer's wallet"""
+        wallet = self.wallets_collection.find_one({"email": lawyer_email})
+
+        if not wallet:
+            # Create wallet if doesn't exist
+            wallet = {
+                "email": lawyer_email,
+                "role": "lawyer",
+                "current_balance": amount,
+                "total_earned": amount,
+                "total_withdrawn": 0.0,
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow(),
+            }
+            self.wallets_collection.insert_one(wallet)
+        else:
+            # Update existing wallet
+            self.wallets_collection.update_one(
+                {"email": lawyer_email},
+                {
+                    "$inc": {
+                        "current_balance": amount,
+                        "total_earned": amount,
+                    },
+                    "$set": {"updated_at": datetime.utcnow()},
+                },
+            )
+
+    def _credit_platform_wallet(self, amount: float):
+        """Credit platform fee to platform wallet"""
+        platform_wallet = self.wallets_collection.find_one({"email": "platform@system"})
+
+        if not platform_wallet:
+            # Create platform wallet if doesn't exist
+            platform_wallet = {
+                "email": "platform@system",
+                "role": "platform",
+                "current_balance": amount,
+                "total_earned": amount,
+                "total_withdrawn": 0.0,
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow(),
+            }
+            self.wallets_collection.insert_one(platform_wallet)
+        else:
+            # Update existing platform wallet
+            self.wallets_collection.update_one(
+                {"email": "platform@system"},
+                {
+                    "$inc": {
+                        "current_balance": amount,
+                        "total_earned": amount,
+                    },
+                    "$set": {"updated_at": datetime.utcnow()},
+                },
+            )
 
     def get_transaction_by_id(self, transaction_id: str) -> Optional[TransactionOut]:
         """Get transaction by ID"""

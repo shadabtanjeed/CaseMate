@@ -12,6 +12,15 @@ abstract class AppointmentRemoteDataSource {
     required String consultationType,
   });
 
+  // ADD THIS METHOD TO ABSTRACT CLASS 👇
+  Future<Map<String, dynamic>> createTransaction({
+    required String appointmentId,
+    required double userPaidAmount,
+    String? transactionId,
+    String? paymentMethod,
+  });
+  // END 👆
+
   Future<Map<String, dynamic>> getAppointment(String appointmentId);
 
   Future<Map<String, dynamic>> getUserAppointments(String userEmail);
@@ -19,9 +28,9 @@ abstract class AppointmentRemoteDataSource {
   Future<Map<String, dynamic>> getLawyerAppointments(String lawyerEmail);
 
   Future<Map<String, dynamic>> updateAppointmentStatus(
-    String appointmentId,
-    bool isFinished,
-  );
+      String appointmentId,
+      bool isFinished,
+      );
 
   Future<Map<String, dynamic>> getCase(String caseId);
 
@@ -48,21 +57,62 @@ class AppointmentRemoteDataSourceImpl implements AppointmentRemoteDataSource {
     required String description,
     required String consultationType,
   }) async {
-    final response = await apiClient.post(
-      '/appointments/create',
-      body: {
-        'lawyer_email': lawyerEmail,
-        'user_email': userEmail,
-        'date': date,
-        'start_time': startTime,
-        'end_time': endTime,
-        'case_type': caseType,
-        'description': description,
-        'consultation_type': consultationType,
-      },
-    );
-    return response;
+    try {
+      final response = await apiClient.post(
+        '/appointments/create',
+        body: {
+          'lawyer_email': lawyerEmail,
+          'user_email': userEmail,
+          'date': date,
+          'start_time': startTime,
+          'end_time': endTime,
+          'case_type': caseType,
+          'description': description,
+          'consultation_type': consultationType,
+        },
+      );
+      return {
+        'success': true,
+        'appointment': response,
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'message': e.toString(),
+      };
+    }
   }
+
+  // ADD THIS METHOD TO IMPLEMENTATION 👇
+  @override
+  Future<Map<String, dynamic>> createTransaction({
+    required String appointmentId,
+    required double userPaidAmount,
+    String? transactionId,
+    String? paymentMethod,
+  }) async {
+    try {
+      final response = await apiClient.post(
+        '/transactions/',
+        body: {
+          'appointment_id': appointmentId,
+          'user_paid_amount': userPaidAmount,
+          if (transactionId != null) 'transaction_id': transactionId,
+          if (paymentMethod != null) 'payment_method': paymentMethod,
+        },
+      );
+      return {
+        'success': true,
+        'transaction': response,
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'message': e.toString(),
+      };
+    }
+  }
+  // END 👆
 
   @override
   Future<Map<String, dynamic>> getAppointment(String appointmentId) async {
@@ -90,9 +140,9 @@ class AppointmentRemoteDataSourceImpl implements AppointmentRemoteDataSource {
 
   @override
   Future<Map<String, dynamic>> updateAppointmentStatus(
-    String appointmentId,
-    bool isFinished,
-  ) async {
+      String appointmentId,
+      bool isFinished,
+      ) async {
     final response = await apiClient.put(
       '/appointments/$appointmentId/status',
       body: {'is_finished': isFinished},
@@ -126,9 +176,9 @@ class AppointmentRemoteDataSourceImpl implements AppointmentRemoteDataSource {
 
   @override
   Future<Map<String, dynamic>> updateCaseStatus(
-    String caseId,
-    String status,
-  ) async {
+      String caseId,
+      String status,
+      ) async {
     final response = await apiClient.put(
       '/appointments/$caseId/status',
       body: {'case_status': status},

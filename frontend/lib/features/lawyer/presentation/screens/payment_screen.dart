@@ -7,6 +7,7 @@ import 'package:flutter_sslcommerz/model/SSLCommerzInitialization.dart';
 import 'package:flutter_sslcommerz/model/SSLCurrencyType.dart';
 import 'package:flutter_sslcommerz/sslcommerz.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../domain/entities/lawyer_entity.dart';
 import '../../../booking/presentation/providers/appointment_provider.dart';
@@ -38,9 +39,22 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
   bool _isLoading = false;
   String _selectedPaymentMethod = 'sslcommerz';
 
-  // SSLCommerz Configuration
-  final String _storeId = "bussi67ca47e24929e";
-  final String _storePassword = "bussi67ca47e24929e@ssl";
+  // SSLCommerz Configuration - Load from environment variables
+  late final String _storeId;
+  late final String _storePassword;
+
+  @override
+  void initState() {
+    super.initState();
+    // Load credentials from .env file
+    _storeId = dotenv.env['SSLCOMMERZ_STORE_ID'] ?? '';
+    _storePassword = dotenv.env['SSLCOMMERZ_STORE_PASSWORD'] ?? '';
+
+    // Optional: Validate that credentials are loaded
+    if (_storeId.isEmpty || _storePassword.isEmpty) {
+      debugPrint('Warning: SSLCommerz credentials not found in .env file');
+    }
+  }
 
   // Generate unique transaction ID
   String _generateTransactionId() {
@@ -65,6 +79,12 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
   }
 
   Future<void> _initiateSSLCommerzPayment() async {
+    // Validate credentials before proceeding
+    if (_storeId.isEmpty || _storePassword.isEmpty) {
+      _showErrorDialog('Payment configuration error. Please contact support.');
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
@@ -175,9 +195,9 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
       final endHour = (hour + 1).toString().padLeft(2, '0');
       final endTime = '$endHour:$minute';
 
-      // Call the repository to create appointment
+      // Step 1: Create appointment
       final repository = ref.read(appointmentRepositoryProvider);
-      final result = await repository.createAppointment(
+      final appointmentResult = await repository.createAppointment(
         lawyerEmail: widget.lawyer.email ?? 'lawyer@example.com',
         userEmail: userEmail,
         date: widget.selectedDate,
@@ -188,10 +208,35 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
         consultationType: 'video',
       );
 
-      if (result['success'] == true) {
+      if (appointmentResult['success'] != true) {
+        _showErrorDialog(
+            appointmentResult['message'] ?? 'Failed to create appointment');
+        return;
+      }
+
+      // Get appointment ID from response
+      final appointmentId = appointmentResult['appointment']?['appointment_id'];
+
+      if (appointmentId == null) {
+        _showErrorDialog('Failed to get appointment ID');
+        return;
+      }
+
+      // Step 2: Create transaction (which will auto-credit wallets)
+      final transactionResult = await repository.createTransaction(
+        appointmentId: appointmentId,
+        userPaidAmount: widget.lawyer.fee.toDouble(),
+        transactionId: paymentResult.tranId,
+        paymentMethod: 'SSLCommerz',
+      );
+
+      if (transactionResult['success'] == true) {
         _showSuccessDialog(paymentResult);
       } else {
-        _showErrorDialog(result['message'] ?? 'Failed to create appointment');
+        // Appointment created but transaction failed
+        // Show partial success message
+        _showErrorDialog(
+            'Appointment created but payment recording failed. Please contact support with transaction ID: ${paymentResult.tranId}');
       }
     } catch (e) {
       _showErrorDialog('Error: ${e.toString()}');
@@ -300,7 +345,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
               ),
               SizedBox(width: 8),
               Text(
-                'Payment Failed',
+                'Error',
                 style: TextStyle(
                   color: Colors.red,
                   fontWeight: FontWeight.w600,
