@@ -8,6 +8,7 @@ abstract class AppointmentRemoteDataSource {
     required String startTime,
     required String endTime,
     required String caseType,
+    required String caseTitle,
     required String description,
     required String consultationType,
   });
@@ -45,6 +46,7 @@ class AppointmentRemoteDataSourceImpl implements AppointmentRemoteDataSource {
     required String startTime,
     required String endTime,
     required String caseType,
+    required String caseTitle,
     required String description,
     required String consultationType,
   }) async {
@@ -57,6 +59,7 @@ class AppointmentRemoteDataSourceImpl implements AppointmentRemoteDataSource {
         'start_time': startTime,
         'end_time': endTime,
         'case_type': caseType,
+        'case_title': caseTitle,
         'description': description,
         'consultation_type': consultationType,
       },

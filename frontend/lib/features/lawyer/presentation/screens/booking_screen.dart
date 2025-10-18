@@ -24,8 +24,9 @@ class BookingScreen extends ConsumerStatefulWidget {
 
 class _BookingScreenState extends ConsumerState<BookingScreen> {
   String? _caseCategory;
+  final TextEditingController _caseTitleController = TextEditingController();
   final TextEditingController _caseDescriptionController =
-  TextEditingController();
+      TextEditingController();
 
   final List<String> _caseCategories = [
     'Criminal',
@@ -38,6 +39,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
 
   @override
   void dispose() {
+    _caseTitleController.dispose();
     _caseDescriptionController.dispose();
     super.dispose();
   }
@@ -60,7 +62,9 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
   }
 
   bool get _isComplete {
-    return _caseCategory != null && _caseDescriptionController.text.isNotEmpty;
+    return _caseCategory != null &&
+        _caseTitleController.text.isNotEmpty &&
+        _caseDescriptionController.text.isNotEmpty;
   }
 
   void _navigateToPayment() {
@@ -74,6 +78,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
           selectedSlot: widget.selectedSlot,
           selectedDate: widget.selectedDate,
           caseCategory: _caseCategory!,
+          caseTitle: _caseTitleController.text,
           caseDescription: _caseDescriptionController.text,
           onBookingSuccess: widget.onBookingSuccess,
         ),
@@ -101,6 +106,10 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
 
             // Case Category section
             _buildCaseCategorySection(),
+            const SizedBox(height: 24),
+
+            // Case Title section
+            _buildCaseTitleSection(),
             const SizedBox(height: 24),
 
             // Case Description section
@@ -249,6 +258,45 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
               },
             ),
           ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCaseTitleSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Case Title',
+          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _caseTitleController,
+          maxLines: 1,
+          decoration: InputDecoration(
+            hintText: 'Enter a brief title for your case...',
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: AppTheme.borderColor),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: AppTheme.borderColor),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(
+                color: AppTheme.primaryBlue,
+                width: 2,
+              ),
+            ),
+            contentPadding: const EdgeInsets.all(12),
+          ),
+          onChanged: (_) {
+            setState(() {});
+          },
         ),
       ],
     );
