@@ -51,6 +51,7 @@ class AppointmentService:
                 "end_time": appointment_data["end_time"],
                 "is_finished": False,
                 "case_type": appointment_data["case_type"],
+                "case_title": appointment_data["case_title"],
                 "description": appointment_data["description"],
                 "consultation_type": appointment_data.get("consultation_type", "video"),
                 "created_at": datetime.utcnow(),
@@ -66,6 +67,7 @@ class AppointmentService:
                 "status": "ongoing",
                 "last_updated": datetime.utcnow(),
                 "case_type": appointment_data["case_type"],
+                "case_title": appointment_data["case_title"],
                 "description": appointment_data["description"],
             }
 

@@ -12,6 +12,7 @@ class AppointmentRepository {
     required String startTime,
     required String endTime,
     required String caseType,
+    required String caseTitle,
     required String description,
     required String consultationType,
   }) async {
@@ -22,6 +23,7 @@ class AppointmentRepository {
       startTime: startTime,
       endTime: endTime,
       caseType: caseType,
+      caseTitle: caseTitle,
       description: description,
       consultationType: consultationType,
     );

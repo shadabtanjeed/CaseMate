@@ -10,6 +10,7 @@ class AppointmentIn(BaseModel):
     start_time: str  # Format: HH:MM
     end_time: str  # Format: HH:MM
     case_type: str
+    case_title: str
     description: str
     consultation_type: str  # 'chat', 'video', 'voice'
 
@@ -43,6 +44,7 @@ class AppointmentOut(BaseModel):
     end_time: str
     is_finished: bool
     case_type: str
+    case_title: str
     description: str
     consultation_type: str
     created_at: Optional[datetime]
@@ -56,6 +58,7 @@ class CaseIn(BaseModel):
     lawyer_email: str
     user_email: str
     case_type: str
+    case_title: str
     description: str
 
 
@@ -68,6 +71,7 @@ class CaseOut(BaseModel):
     status: str  # 'ongoing', 'completed'
     last_updated: datetime
     case_type: str
+    case_title: str
     description: str
 
     class Config:
