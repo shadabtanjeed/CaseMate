@@ -4,6 +4,7 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/theme/app_theme.dart';
 import 'package:jitsi_meet_flutter_sdk/jitsi_meet_flutter_sdk.dart';
+import '../../../video_call/data/meeting_service.dart';
 
 class UserPovSessionsScreen extends ConsumerStatefulWidget {
   final VoidCallback? onBack;
@@ -11,12 +12,14 @@ class UserPovSessionsScreen extends ConsumerStatefulWidget {
   const UserPovSessionsScreen({Key? key, this.onBack}) : super(key: key);
 
   @override
-  ConsumerState<UserPovSessionsScreen> createState() => _UserPovSessionsScreenState();
+  ConsumerState<UserPovSessionsScreen> createState() =>
+      _UserPovSessionsScreenState();
 }
 
 class _UserPovSessionsScreenState extends ConsumerState<UserPovSessionsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  late MeetingService _meetingService;
   List<Map<String, dynamic>> _appointments = [];
   bool _isLoading = true;
   String? _error;
@@ -25,8 +28,20 @@ class _UserPovSessionsScreenState extends ConsumerState<UserPovSessionsScreen>
   @override
   void initState() {
     super.initState();
+    _initializeMeetingService();
     _tabController = TabController(length: 2, vsync: this);
     _fetchAppointments();
+  }
+
+  Future<void> _initializeMeetingService() async {
+    try {
+      final local = ref.read(authLocalDataSourceProvider);
+      final token = await local.getAccessToken();
+      _meetingService = MeetingService(authToken: token);
+    } catch (e) {
+      debugPrint('Error initializing meeting service: $e');
+      _meetingService = MeetingService(); // Fallback without token
+    }
   }
 
   Future<void> _fetchAppointments() async {
@@ -48,10 +63,12 @@ class _UserPovSessionsScreenState extends ConsumerState<UserPovSessionsScreen>
       }
 
       final api = ref.read(apiClientProvider);
-      final resp = await api.get('/appointments/me', headers: ApiConstants.headersWithToken(token));
+      final resp = await api.get('/appointments/me',
+          headers: ApiConstants.headersWithToken(token));
       final data = resp['data'] as List<dynamic>? ?? [];
       setState(() {
-        _appointments = data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+        _appointments =
+            data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
         _isLoading = false;
       });
 
@@ -74,42 +91,111 @@ class _UserPovSessionsScreenState extends ConsumerState<UserPovSessionsScreen>
   // Jitsi join helper - uses appointment_id as room name
   Future<void> _joinJitsiMeeting(Map<String, dynamic> appt) async {
     try {
-      final rawId = (appt['appointment_id'] ?? DateTime.now().millisecondsSinceEpoch).toString();
-      final room = 'casemate-$rawId'.replaceAll(RegExp(r"\s+"), '-');
+      final appointmentId = appt['appointment_id'] ?? '';
+      final lawyerEmail = appt['lawyer_email'] ?? '';
+      final userEmail = appt['user_email'] ?? '';
+      final consultationType = appt['consultation_type'] ?? 'video';
 
-      // optional: pass user display name and email if available
-      final local = ref.read(authLocalDataSourceProvider);
-      String displayName = 'Client';
-      String email = '';
-      try {
-        final profile = await local.getUser();
-        if (profile != null) {
-          displayName = profile.fullName;
-          email = profile.email;
-        }
-      } catch (_) {}
+      // Only join video meetings
+      if (consultationType != 'video') {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Only video consultations can be joined from here'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+        return;
+      }
 
-      // Use the JitsiMeet API from the installed package
-      final jitsi = JitsiMeet();
-      final options = JitsiMeetConferenceOptions(
-        room: room,
-        serverURL: 'https://meet.jit.si',
-        userInfo: JitsiMeetUserInfo(displayName: displayName, email: email),
+      if (!mounted) return;
+
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: 16),
+                const Text('Joining meeting room...'),
+              ],
+            ),
+          );
+        },
       );
 
-      // optional listener
-      final listener = JitsiMeetEventListener(
-        conferenceJoined: (url) {
-          // joined
-        },
-        conferenceTerminated: (url, error) {
-          // terminated
-        },
+      // Create/get meeting room
+      final meetingResult = await _meetingService.createMeetingRoom(
+        appointmentId: appointmentId,
+        lawyerEmail: lawyerEmail,
+        userEmail: userEmail,
+        scheduledTime: appt['start_time'] ?? '',
       );
 
-      jitsi.join(options, listener);
+      if (!mounted) return;
+      Navigator.pop(context); // Close loading dialog
+
+      if (meetingResult['success'] == true) {
+        final roomId = meetingResult['room_id'] ?? '';
+
+        // Get current user info
+        final local = ref.read(authLocalDataSourceProvider);
+        String displayName = 'Client';
+        String email = '';
+        try {
+          final profile = await local.getUser();
+          if (profile != null) {
+            displayName = profile.fullName;
+            email = profile.email;
+          }
+        } catch (_) {}
+
+        // Join the meeting
+        await _meetingService.joinMeeting(
+          roomId: roomId,
+          name: displayName,
+          userType: 'user',
+        );
+
+        // Launch Jitsi meeting
+        if (!mounted) return;
+        final jitsi = JitsiMeet();
+        final options = JitsiMeetConferenceOptions(
+          room: roomId,
+          serverURL: 'https://jitsi.riot.im/',
+          userInfo: JitsiMeetUserInfo(displayName: displayName, email: email),
+        );
+
+        final listener = JitsiMeetEventListener(
+          conferenceJoined: (url) {
+            debugPrint('Conference joined: $url');
+          },
+          conferenceTerminated: (url, error) {
+            debugPrint('Conference terminated: $url, error: $error');
+            _meetingService.leaveMeeting(roomId);
+            _meetingService.endMeeting(roomId: roomId);
+          },
+        );
+
+        await jitsi.join(options, listener);
+      } else {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                'Error joining meeting: ${meetingResult['error'] ?? 'Unknown error'}'),
+          ),
+        );
+      }
     } catch (err) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to join meeting: $err')));
+      if (!mounted) return;
+      Navigator.pop(context); // Close loading dialog if still open
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to join meeting: $err')),
+      );
     }
   }
 
@@ -163,11 +249,26 @@ class _UserPovSessionsScreenState extends ConsumerState<UserPovSessionsScreen>
       return 'Today, ${_formatTime(dt)}';
     } else if (appointmentDay == today.add(const Duration(days: 1))) {
       return 'Tomorrow, ${_formatTime(dt)}';
-    } else if (appointmentDay.isAfter(today) && appointmentDay.isBefore(today.add(const Duration(days: 7)))) {
-      final weekday = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][dt.weekday - 1];
+    } else if (appointmentDay.isAfter(today) &&
+        appointmentDay.isBefore(today.add(const Duration(days: 7)))) {
+      final weekday =
+          ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][dt.weekday - 1];
       return '$weekday, ${_formatTime(dt)}';
     } else {
-      final month = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][dt.month - 1];
+      final month = [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec'
+      ][dt.month - 1];
       return '${dt.day} $month ${dt.year}, ${_formatTime(dt)}';
     }
   }
@@ -249,7 +350,8 @@ class _UserPovSessionsScreenState extends ConsumerState<UserPovSessionsScreen>
                   ),
                   const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
                       color: isFinished
                           ? Colors.grey.shade100
@@ -292,32 +394,39 @@ class _UserPovSessionsScreenState extends ConsumerState<UserPovSessionsScreen>
                 child: Column(
                   children: [
                     if ((a['lawyer_name'] ?? '').toString().isNotEmpty) ...[
-                      _buildInfoRow(Icons.person_outline, 'Lawyer', a['lawyer_name'] ?? ''),
+                      _buildInfoRow(Icons.person_outline, 'Lawyer',
+                          a['lawyer_name'] ?? ''),
                       const SizedBox(height: 6),
                     ],
-                    _buildInfoRow(Icons.email_outlined, 'Email', a['lawyer_email'] ?? 'Not assigned'),
+                    _buildInfoRow(Icons.email_outlined, 'Email',
+                        a['lawyer_email'] ?? 'Not assigned'),
                     const SizedBox(height: 6),
                     if ((a['lawyer_phone'] ?? '').toString().isNotEmpty) ...[
-                      _buildInfoRow(Icons.phone, 'Phone', a['lawyer_phone'] ?? ''),
+                      _buildInfoRow(
+                          Icons.phone, 'Phone', a['lawyer_phone'] ?? ''),
                       const SizedBox(height: 6),
                     ],
-                    _buildInfoRow(Icons.video_call_outlined, 'Type', a['consultation_type'] ?? 'Not specified'),
+                    _buildInfoRow(Icons.video_call_outlined, 'Type',
+                        a['consultation_type'] ?? 'Not specified'),
                   ],
                 ),
               ),
-              if (a['description'] != null && a['description'].toString().trim().isNotEmpty) ...[
+              if (a['description'] != null &&
+                  a['description'].toString().trim().isNotEmpty) ...[
                 const SizedBox(height: 16),
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: Colors.blue.shade50.withOpacity(0.3),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.blue.shade100.withOpacity(0.5)),
+                    border: Border.all(
+                        color: Colors.blue.shade100.withOpacity(0.5)),
                   ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.description_outlined, size: 16, color: Colors.grey.shade600),
+                      Icon(Icons.description_outlined,
+                          size: 16, color: Colors.grey.shade600),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
@@ -532,7 +641,8 @@ class _UserPovSessionsScreenState extends ConsumerState<UserPovSessionsScreen>
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.error_outline, size: 64, color: Colors.red.shade300),
+                        Icon(Icons.error_outline,
+                            size: 64, color: Colors.red.shade300),
                         const SizedBox(height: 16),
                         Text(
                           'Error loading sessions',
@@ -545,7 +655,8 @@ class _UserPovSessionsScreenState extends ConsumerState<UserPovSessionsScreen>
                         const SizedBox(height: 8),
                         Text(
                           _error!,
-                          style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                          style: TextStyle(
+                              color: Colors.grey.shade600, fontSize: 13),
                           textAlign: TextAlign.center,
                         ),
                       ],
