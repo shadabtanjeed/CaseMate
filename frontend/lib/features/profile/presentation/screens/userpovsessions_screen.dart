@@ -4,6 +4,7 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/theme/app_theme.dart';
 import 'package:jitsi_meet_flutter_sdk/jitsi_meet_flutter_sdk.dart';
+import '../../../video_call/data/meeting_service.dart';
 
 class UserPovSessionsScreen extends ConsumerStatefulWidget {
   final VoidCallback? onBack;
@@ -18,6 +19,7 @@ class UserPovSessionsScreen extends ConsumerStatefulWidget {
 class _UserPovSessionsScreenState extends ConsumerState<UserPovSessionsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  late MeetingService _meetingService;
   List<Map<String, dynamic>> _appointments = [];
   bool _isLoading = true;
   String? _error;
@@ -26,8 +28,20 @@ class _UserPovSessionsScreenState extends ConsumerState<UserPovSessionsScreen>
   @override
   void initState() {
     super.initState();
+    _initializeMeetingService();
     _tabController = TabController(length: 2, vsync: this);
     _fetchAppointments();
+  }
+
+  Future<void> _initializeMeetingService() async {
+    try {
+      final local = ref.read(authLocalDataSourceProvider);
+      final token = await local.getAccessToken();
+      _meetingService = MeetingService(authToken: token);
+    } catch (e) {
+      debugPrint('Error initializing meeting service: $e');
+      _meetingService = MeetingService(); // Fallback without token
+    }
   }
 
   Future<void> _fetchAppointments() async {
@@ -77,45 +91,111 @@ class _UserPovSessionsScreenState extends ConsumerState<UserPovSessionsScreen>
   // Jitsi join helper - uses appointment_id as room name
   Future<void> _joinJitsiMeeting(Map<String, dynamic> appt) async {
     try {
-      final rawId =
-          (appt['appointment_id'] ?? DateTime.now().millisecondsSinceEpoch)
-              .toString();
-      final room = 'casemate-$rawId'.replaceAll(RegExp(r"\s+"), '-');
+      final appointmentId = appt['appointment_id'] ?? '';
+      final lawyerEmail = appt['lawyer_email'] ?? '';
+      final userEmail = appt['user_email'] ?? '';
+      final consultationType = appt['consultation_type'] ?? 'video';
 
-      // optional: pass user display name and email if available
-      final local = ref.read(authLocalDataSourceProvider);
-      String displayName = 'Client';
-      String email = '';
-      try {
-        final profile = await local.getUser();
-        if (profile != null) {
-          displayName = profile.fullName;
-          email = profile.email;
-        }
-      } catch (_) {}
+      // Only join video meetings
+      if (consultationType != 'video') {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Only video consultations can be joined from here'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+        return;
+      }
 
-      // Use the JitsiMeet API from the installed package
-      final jitsi = JitsiMeet();
-      final options = JitsiMeetConferenceOptions(
-        room: room,
-        serverURL: 'https://jitsi.riot.im/',
-        userInfo: JitsiMeetUserInfo(displayName: displayName, email: email),
+      if (!mounted) return;
+
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: 16),
+                const Text('Joining meeting room...'),
+              ],
+            ),
+          );
+        },
       );
 
-      // optional listener
-      final listener = JitsiMeetEventListener(
-        conferenceJoined: (url) {
-          // joined
-        },
-        conferenceTerminated: (url, error) {
-          // terminated
-        },
+      // Create/get meeting room
+      final meetingResult = await _meetingService.createMeetingRoom(
+        appointmentId: appointmentId,
+        lawyerEmail: lawyerEmail,
+        userEmail: userEmail,
+        scheduledTime: appt['start_time'] ?? '',
       );
 
-      jitsi.join(options, listener);
+      if (!mounted) return;
+      Navigator.pop(context); // Close loading dialog
+
+      if (meetingResult['success'] == true) {
+        final roomId = meetingResult['room_id'] ?? '';
+
+        // Get current user info
+        final local = ref.read(authLocalDataSourceProvider);
+        String displayName = 'Client';
+        String email = '';
+        try {
+          final profile = await local.getUser();
+          if (profile != null) {
+            displayName = profile.fullName;
+            email = profile.email;
+          }
+        } catch (_) {}
+
+        // Join the meeting
+        await _meetingService.joinMeeting(
+          roomId: roomId,
+          name: displayName,
+          userType: 'user',
+        );
+
+        // Launch Jitsi meeting
+        if (!mounted) return;
+        final jitsi = JitsiMeet();
+        final options = JitsiMeetConferenceOptions(
+          room: roomId,
+          serverURL: 'https://jitsi.riot.im/',
+          userInfo: JitsiMeetUserInfo(displayName: displayName, email: email),
+        );
+
+        final listener = JitsiMeetEventListener(
+          conferenceJoined: (url) {
+            debugPrint('Conference joined: $url');
+          },
+          conferenceTerminated: (url, error) {
+            debugPrint('Conference terminated: $url, error: $error');
+            _meetingService.leaveMeeting(roomId);
+            _meetingService.endMeeting(roomId: roomId);
+          },
+        );
+
+        await jitsi.join(options, listener);
+      } else {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                'Error joining meeting: ${meetingResult['error'] ?? 'Unknown error'}'),
+          ),
+        );
+      }
     } catch (err) {
+      if (!mounted) return;
+      Navigator.pop(context); // Close loading dialog if still open
       ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to join meeting: $err')));
+        SnackBar(content: Text('Failed to join meeting: $err')),
+      );
     }
   }
 

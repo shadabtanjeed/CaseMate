@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../core/theme/app_theme.dart';
 import 'data/schedule_service.dart';
+import '../video_call/data/meeting_service.dart';
+import 'package:jitsi_meet_flutter_sdk/jitsi_meet_flutter_sdk.dart';
 
 class LawyerScheduleScreen extends StatefulWidget {
   final VoidCallback onBack;
@@ -21,6 +24,7 @@ class _LawyerScheduleScreenState extends State<LawyerScheduleScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final ScheduleService _scheduleService = ScheduleService();
+  late MeetingService _meetingService;
   bool _hasUnsavedChanges = false;
   Timer? _hideFabTimer;
 
@@ -57,6 +61,7 @@ class _LawyerScheduleScreenState extends State<LawyerScheduleScreen>
   @override
   void initState() {
     super.initState();
+    _initializeMeetingService();
     _tabController = TabController(length: 2, vsync: this);
     _loadScheduleFromBackend();
 
@@ -76,6 +81,17 @@ class _LawyerScheduleScreenState extends State<LawyerScheduleScreen>
     super.didUpdateWidget(oldWidget);
     // Refresh appointments if lawyer email changed or when returning to screen
     _loadAppointmentsForWeek(_weekStartDate);
+  }
+
+  Future<void> _initializeMeetingService() async {
+    try {
+      const storage = FlutterSecureStorage();
+      final token = await storage.read(key: 'access_token');
+      _meetingService = MeetingService(authToken: token);
+    } catch (e) {
+      debugPrint('Error initializing meeting service: $e');
+      _meetingService = MeetingService(); // Fallback without token
+    }
   }
 
   Future<void> _loadScheduleFromBackend() async {
@@ -190,6 +206,130 @@ class _LawyerScheduleScreenState extends State<LawyerScheduleScreen>
       _selectedDate = newWeekStart;
     });
     _loadAppointmentsForWeek(newWeekStart);
+  }
+
+  Future<void> _startMeeting(Map<String, dynamic> appointment) async {
+    try {
+      final appointmentId = appointment['appointment_id'] ?? '';
+      final lawyerEmail = appointment['lawyer_email'] ?? '';
+      final userEmail = appointment['user_email'] ?? '';
+      final consultationType = appointment['consultation_type'] ?? 'video';
+
+      // Only start video meetings
+      if (consultationType != 'video') {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Only video consultations can be started from here'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+        return;
+      }
+
+      if (!mounted) return;
+
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: 16),
+                const Text('Initializing meeting room...'),
+              ],
+            ),
+          );
+        },
+      );
+
+      // Create meeting room
+      final meetingResult = await _meetingService.createMeetingRoom(
+        appointmentId: appointmentId,
+        lawyerEmail: lawyerEmail,
+        userEmail: userEmail,
+        scheduledTime: appointment['start_time'] ?? '',
+      );
+
+      if (!mounted) return;
+      Navigator.pop(context); // Close loading dialog
+
+      if (meetingResult['success'] == true) {
+        final roomId = meetingResult['room_id'] ?? '';
+        final lawyerName = appointment['lawyer_name'] ?? 'Lawyer';
+
+        if (!mounted) return;
+
+        // Join the meeting and navigate to Jitsi
+        await _meetingService.joinMeeting(
+          roomId: roomId,
+          name: lawyerName,
+          userType: 'lawyer',
+        );
+
+        // Launch Jitsi meeting
+        if (!mounted) return;
+        _launchJitsiMeeting(
+          roomId: roomId,
+          displayName: lawyerName,
+          userEmail: lawyerEmail,
+        );
+      } else {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                'Error creating meeting: ${meetingResult['error'] ?? 'Unknown error'}'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context); // Close loading dialog if still open
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error starting meeting: $e')),
+      );
+    }
+  }
+
+  Future<void> _launchJitsiMeeting({
+    required String roomId,
+    required String displayName,
+    required String userEmail,
+  }) async {
+    try {
+      final jitsi = JitsiMeet();
+      final options = JitsiMeetConferenceOptions(
+        room: roomId,
+        serverURL: 'https://jitsi.riot.im/',
+        userInfo: JitsiMeetUserInfo(
+          displayName: displayName,
+          email: userEmail,
+        ),
+      );
+
+      final listener = JitsiMeetEventListener(
+        conferenceJoined: (url) {
+          debugPrint('Conference joined: $url');
+        },
+        conferenceTerminated: (url, error) {
+          debugPrint('Conference terminated: $url, error: $error');
+          // Handle meeting ended
+          _meetingService.leaveMeeting(roomId);
+          _meetingService.endMeeting(roomId: roomId);
+        },
+      );
+
+      await jitsi.join(options, listener);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error launching meeting: $e')),
+      );
+    }
   }
 
   @override
@@ -585,7 +725,7 @@ class _LawyerScheduleScreenState extends State<LawyerScheduleScreen>
               ),
               const SizedBox(width: 8),
               ElevatedButton(
-                onPressed: () {},
+                onPressed: () => _startMeeting(appointment),
                 style: ElevatedButton.styleFrom(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
