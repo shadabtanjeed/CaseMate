@@ -63,9 +63,12 @@ class _AppNavigatorState extends State<AppNavigator> {
   String _selectedLawyerId = '';
   bool _openAvailabilityTab = false;
   String? _selectedSpecialization;
+  String? _previousScreen;
+  String? _currentUserRole;
 
   void _navigateTo(String screen) {
     setState(() {
+      _previousScreen = _currentScreen;
       _currentScreen = screen;
     });
     // debug trace so we can see navigation activity in logs
@@ -75,35 +78,33 @@ class _AppNavigatorState extends State<AppNavigator> {
   void _navigateToLawyersWithSpecialization(String? spec) {
     setState(() {
       _selectedSpecialization = spec;
-      _currentScreen = 'lawyers';
     });
+    _navigateTo('lawyers');
     debugPrint('[AppNavigator] navigateToLawyersWithSpecialization: $_selectedSpecialization');
   }
 
   void _handleLogin([String? role]) {
-    setState(() {
-      if (role == 'lawyer') {
-        _currentScreen = 'lawyer-home';
-      } else {
-        _currentScreen = 'home';
-      }
-    });
+    // remember the logged in user's role so we can route correctly later
+    _currentUserRole = role;
+    if (role == 'lawyer') {
+      _navigateTo('lawyer-home');
+    } else {
+      _navigateTo('home');
+    }
     _showSnackbar('Welcome back!');
     debugPrint('[AppNavigator] handleLogin -> $_currentScreen (role=$role)');
   }
 
   void _handleRegister() {
-    setState(() {
-      _currentScreen = 'login';
-    });
+    _navigateTo('login');
     _showSnackbar('Account created successfully! Please login.');
     debugPrint('[AppNavigator] handleRegister -> login');
   }
 
   void _handleLogout() {
-    setState(() {
-      _currentScreen = 'login';
-    });
+    // clear remembered role on logout
+    _currentUserRole = null;
+    _navigateTo('login');
     _showSnackbar('Logged out successfully');
     debugPrint('[AppNavigator] handleLogout -> login');
   }
@@ -111,26 +112,24 @@ class _AppNavigatorState extends State<AppNavigator> {
   void _handleSelectLawyer(String lawyerId) {
     setState(() {
       _selectedLawyerId = lawyerId;
-      _currentScreen = 'lawyer-detail';
       _openAvailabilityTab = false;
     });
+    _navigateTo('lawyer-detail');
     debugPrint('[AppNavigator] handleSelectLawyer -> $_selectedLawyerId');
   }
 
   void _handleBookNowLawyer(String lawyerId) {
     setState(() {
       _selectedLawyerId = lawyerId;
-      _currentScreen = 'lawyer-detail';
       _openAvailabilityTab = true;
     });
+    _navigateTo('lawyer-detail');
     _showSnackbar('Booking confirmed successfully!');
-    debugPrint('[AppNavigator] handleBookingConfirm -> home');
+    debugPrint('[AppNavigator] handleBookingConfirm -> lawyer-detail');
   }
 
   void _handleEndCall() {
-    setState(() {
-      _currentScreen = 'home';
-    });
+    _navigateTo('home');
     _showSnackbar('Call ended');
     debugPrint('[AppNavigator] handleEndCall -> home');
   }
@@ -205,7 +204,14 @@ class _AppNavigatorState extends State<AppNavigator> {
 
       case 'profile':
         return ProfileScreen(
-          onBack: () => _navigateTo('home'),
+          onBack: () {
+            // If the current user is a lawyer, ensure back goes to the lawyer home
+            if (_currentUserRole == 'lawyer') {
+              _navigateTo('lawyer-home');
+            } else {
+              _navigateTo(_previousScreen ?? 'home');
+            }
+          },
           onLogout: _handleLogout,
         );
 
