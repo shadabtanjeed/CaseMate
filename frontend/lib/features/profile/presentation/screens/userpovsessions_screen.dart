@@ -428,9 +428,15 @@ class _UserPovSessionsScreenState extends ConsumerState<UserPovSessionsScreen>
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? const Color(0xFF2C2C2C)
+                      : Colors.grey.shade50,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey.shade200),
+                  border: Border.all(
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? const Color(0xFF404040)
+                        : Colors.grey.shade200,
+                  ),
                 ),
                 child: Column(
                   children: [
@@ -439,15 +445,24 @@ class _UserPovSessionsScreenState extends ConsumerState<UserPovSessionsScreen>
                       padding: const EdgeInsets.only(bottom: 8.0),
                       child: Row(
                         children: [
-                          Icon(Icons.access_time,
-                              size: 16, color: Colors.grey.shade600),
+                          Icon(
+                            Icons.access_time,
+                            size: 16,
+                            color:
+                                Theme.of(context).textTheme.bodyMedium?.color,
+                          ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               _formatSessionTimeRange(
                                   a['start_time'], a['end_time']),
                               style: TextStyle(
-                                  fontSize: 13, color: Colors.grey.shade800),
+                                fontSize: 13,
+                                color: Theme.of(context)
+                                    .textTheme
+                                    .bodyLarge
+                                    ?.color,
+                              ),
                             ),
                           ),
                         ],
@@ -477,23 +492,32 @@ class _UserPovSessionsScreenState extends ConsumerState<UserPovSessionsScreen>
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.blue.shade50.withOpacity(0.3),
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? const Color(0xFF2C2C2C)
+                        : Colors.blue.shade50.withOpacity(0.3),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                        color: Colors.blue.shade100.withOpacity(0.5)),
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? const Color(0xFF404040)
+                          : Colors.blue.shade100.withOpacity(0.5),
+                    ),
                   ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.description_outlined,
-                          size: 16, color: Colors.grey.shade600),
+                      Icon(
+                        Icons.description_outlined,
+                        size: 16,
+                        color: Theme.of(context).textTheme.bodyMedium?.color,
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           a['description'] ?? '',
                           style: TextStyle(
                             fontSize: 13,
-                            color: Colors.grey.shade700,
+                            color:
+                                Theme.of(context).textTheme.bodyMedium?.color,
                             height: 1.4,
                           ),
                           maxLines: 3,
@@ -550,14 +574,18 @@ class _UserPovSessionsScreenState extends ConsumerState<UserPovSessionsScreen>
   Widget _buildInfoRow(IconData icon, String label, String value) {
     return Row(
       children: [
-        Icon(icon, size: 16, color: Colors.grey.shade600),
+        Icon(
+          icon,
+          size: 16,
+          color: Theme.of(context).textTheme.bodyMedium?.color,
+        ),
         const SizedBox(width: 8),
         Text(
           '$label: ',
           style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w600,
-            color: Colors.grey.shade700,
+            color: Theme.of(context).textTheme.bodyMedium?.color,
           ),
         ),
         Expanded(
@@ -565,7 +593,7 @@ class _UserPovSessionsScreenState extends ConsumerState<UserPovSessionsScreen>
             value,
             style: TextStyle(
               fontSize: 13,
-              color: Colors.grey.shade800,
+              color: Theme.of(context).textTheme.bodyLarge?.color,
             ),
             overflow: TextOverflow.ellipsis,
           ),

@@ -682,18 +682,18 @@ class _LawyerScheduleScreenState extends State<LawyerScheduleScreen>
                     const SizedBox(height: 8),
                     Text(
                       clientName,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
-                        color: AppTheme.textPrimary,
+                        color: Theme.of(context).textTheme.bodyLarge?.color,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       '$caseType - $description',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14,
-                        color: AppTheme.textSecondary,
+                        color: Theme.of(context).textTheme.bodyMedium?.color,
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
@@ -851,7 +851,9 @@ class _LawyerScheduleScreenState extends State<LawyerScheduleScreen>
             day,
             style: TextStyle(
               fontSize: 12,
-              color: isSelected ? Colors.white : AppTheme.textSecondary,
+              color: isSelected
+                  ? Colors.white
+                  : Theme.of(context).textTheme.bodyMedium?.color,
             ),
           ),
           const SizedBox(height: 4),
@@ -860,7 +862,9 @@ class _LawyerScheduleScreenState extends State<LawyerScheduleScreen>
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
-              color: isSelected ? Colors.white : AppTheme.textPrimary,
+              color: isSelected
+                  ? Colors.white
+                  : Theme.of(context).textTheme.bodyLarge?.color,
             ),
           ),
           const SizedBox(height: 4),
@@ -1098,19 +1102,26 @@ class _LawyerScheduleScreenState extends State<LawyerScheduleScreen>
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Row(
                   children: [
-                    const Icon(Icons.access_time,
-                        size: 16, color: AppTheme.textSecondary),
+                    Icon(
+                      Icons.access_time,
+                      size: 16,
+                      color: Theme.of(context).textTheme.bodyMedium?.color,
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       '${slot['start']} - ${slot['end']}',
-                      style: const TextStyle(
-                        color: AppTheme.textSecondary,
+                      style: TextStyle(
+                        color: Theme.of(context).textTheme.bodyMedium?.color,
                         fontSize: 14,
                       ),
                     ),
                     const Spacer(),
                     IconButton(
-                      icon: const Icon(Icons.edit, size: 18),
+                      icon: Icon(
+                        Icons.edit,
+                        size: 18,
+                        color: Theme.of(context).iconTheme.color,
+                      ),
                       onPressed: () => _editTimeSlot(day, index),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
@@ -1143,10 +1154,10 @@ class _LawyerScheduleScreenState extends State<LawyerScheduleScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'No time slots set',
                     style: TextStyle(
-                      color: AppTheme.textSecondary,
+                      color: Theme.of(context).textTheme.bodyMedium?.color,
                       fontSize: 13,
                       fontStyle: FontStyle.italic,
                     ),
