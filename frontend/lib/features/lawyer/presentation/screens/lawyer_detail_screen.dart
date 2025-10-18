@@ -264,7 +264,8 @@ class _LawyerDetailScreenState extends ConsumerState<LawyerDetailScreen>
           borderRadius: BorderRadius.circular(12),
         ),
         labelColor: Colors.white,
-        unselectedLabelColor: AppTheme.textPrimary,
+        unselectedLabelColor: Theme.of(context).textTheme.bodyMedium?.color ??
+            AppTheme.textSecondary,
         labelPadding: EdgeInsets.zero,
         indicatorPadding:
             const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
@@ -622,25 +623,35 @@ class _LawyerDetailScreenState extends ConsumerState<LawyerDetailScreen>
                                                     selected ? date : null;
                                               });
                                             },
-                                      backgroundColor:
-                                          (isBooked || hasUserConflict)
-                                              ? Colors.grey.withOpacity(0.2)
-                                              : AppTheme.primaryBlue
-                                                  .withOpacity(0.1),
+                                      backgroundColor: (isBooked ||
+                                              hasUserConflict)
+                                          ? Theme.of(context).brightness ==
+                                                  Brightness.dark
+                                              ? const Color(0xFF505050)
+                                              : Colors.grey.withOpacity(0.15)
+                                          : AppTheme.primaryBlue
+                                              .withOpacity(0.1),
                                       selectedColor: AppTheme.primaryBlue,
                                       labelStyle: TextStyle(
                                         color: (isBooked || hasUserConflict)
-                                            ? Colors.grey
+                                            ? Theme.of(context).brightness ==
+                                                    Brightness.dark
+                                                ? const Color(0xFFAAAAAA)
+                                                : Colors.grey[600]
                                             : isSelected
                                                 ? Colors.white
                                                 : AppTheme.primaryBlue,
                                       ),
                                       side: BorderSide(
                                         color: (isBooked || hasUserConflict)
-                                            ? Colors.grey.withOpacity(0.3)
+                                            ? Theme.of(context).brightness ==
+                                                    Brightness.dark
+                                                ? const Color(0xFF707070)
+                                                : Colors.grey.withOpacity(0.4)
                                             : isSelected
                                                 ? AppTheme.primaryBlue
-                                                : AppTheme.borderColor,
+                                                : Theme.of(context)
+                                                    .dividerColor,
                                       ),
                                     );
                                   }).toList(),
@@ -656,9 +667,13 @@ class _LawyerDetailScreenState extends ConsumerState<LawyerDetailScreen>
               ),
               Container(
                 padding: const EdgeInsets.all(16),
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  border: Border(top: BorderSide(color: AppTheme.borderColor)),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).scaffoldBackgroundColor,
+                  border: Border(
+                    top: BorderSide(
+                      color: Theme.of(context).dividerColor,
+                    ),
+                  ),
                 ),
                 child: SafeArea(
                   child: SizedBox(

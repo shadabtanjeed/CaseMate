@@ -147,7 +147,9 @@ class _LawyerDiscoveryScreenState extends ConsumerState<LawyerDiscoveryScreen> {
                     hintText: 'Search by name or specialization...',
                     prefixIcon: const Icon(Icons.search),
                     filled: true,
-                    fillColor: Colors.white,
+                    fillColor: Theme.of(context).brightness == Brightness.dark
+                        ? const Color(0xFF2C2C2C)
+                        : Colors.white,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide.none,
@@ -158,7 +160,9 @@ class _LawyerDiscoveryScreenState extends ConsumerState<LawyerDiscoveryScreen> {
               const SizedBox(width: 8),
               Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? const Color(0xFF2C2C2C)
+                      : Colors.white,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: IconButton(

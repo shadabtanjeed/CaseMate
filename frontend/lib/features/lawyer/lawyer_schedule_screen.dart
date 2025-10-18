@@ -335,7 +335,7 @@ class _LawyerScheduleScreenState extends State<LawyerScheduleScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -491,6 +491,7 @@ class _LawyerScheduleScreenState extends State<LawyerScheduleScreen>
             const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
         labelPadding: EdgeInsets.zero,
         labelColor: Colors.white,
+        unselectedLabelColor: Theme.of(context).textTheme.bodyMedium?.color,
         tabs: const [
           Tab(
               child: Padding(
@@ -625,7 +626,7 @@ class _LawyerScheduleScreenState extends State<LawyerScheduleScreen>
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: color.withOpacity(0.3), width: 2),
       ),
@@ -743,9 +744,9 @@ class _LawyerScheduleScreenState extends State<LawyerScheduleScreen>
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.borderColor),
+        border: Border.all(color: Theme.of(context).dividerColor),
       ),
       child: Column(
         children: [
@@ -754,19 +755,26 @@ class _LawyerScheduleScreenState extends State<LawyerScheduleScreen>
             children: [
               Text(
                 _getMonthYear(_weekStartDate),
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
                 ),
               ),
               Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.chevron_left),
+                    icon: Icon(
+                      Icons.chevron_left,
+                      color: Theme.of(context).iconTheme.color,
+                    ),
                     onPressed: _goToPreviousWeek,
                   ),
                   IconButton(
-                    icon: const Icon(Icons.chevron_right),
+                    icon: Icon(
+                      Icons.chevron_right,
+                      color: Theme.of(context).iconTheme.color,
+                    ),
                     onPressed: _goToNextWeek,
                   ),
                 ],
@@ -1002,14 +1010,17 @@ class _LawyerScheduleScreenState extends State<LawyerScheduleScreen>
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: AppTheme.accentBlue.withOpacity(0.3)),
             ),
-            child: const Row(
+            child: Row(
               children: [
-                Icon(Icons.info_outline, color: AppTheme.primaryBlue),
-                SizedBox(width: 12),
+                const Icon(Icons.info_outline, color: AppTheme.primaryBlue),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     'Set your weekly availability to help clients book consultations at convenient times.',
-                    style: TextStyle(color: AppTheme.textPrimary, fontSize: 13),
+                    style: TextStyle(
+                      color: Theme.of(context).textTheme.bodyLarge?.color,
+                      fontSize: 13,
+                    ),
                   ),
                 ),
               ],
@@ -1042,9 +1053,9 @@ class _LawyerScheduleScreenState extends State<LawyerScheduleScreen>
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.borderColor),
+        border: Border.all(color: Theme.of(context).dividerColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1054,10 +1065,10 @@ class _LawyerScheduleScreenState extends State<LawyerScheduleScreen>
               Expanded(
                 child: Text(
                   day,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: AppTheme.textPrimary,
+                    color: Theme.of(context).textTheme.bodyLarge?.color,
                   ),
                 ),
               ),

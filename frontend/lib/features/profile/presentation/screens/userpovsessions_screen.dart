@@ -255,7 +255,8 @@ class _UserPovSessionsScreenState extends ConsumerState<UserPovSessionsScreen>
       return 'Tomorrow';
     } else if (appointmentDay.isAfter(today) &&
         appointmentDay.isBefore(today.add(const Duration(days: 7)))) {
-      final weekday = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][dt.weekday - 1];
+      final weekday =
+          ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][dt.weekday - 1];
       return '$weekday ${dt.day} ${[
         'Jan',
         'Feb',
@@ -294,7 +295,8 @@ class _UserPovSessionsScreenState extends ConsumerState<UserPovSessionsScreen>
     String fmtStart = _formatTimeFromString(start);
     String fmtEnd = _formatTimeFromString(end);
 
-    if ((fmtStart.isEmpty || fmtStart == 'TBD') && (fmtEnd.isEmpty || fmtEnd == 'TBD')) {
+    if ((fmtStart.isEmpty || fmtStart == 'TBD') &&
+        (fmtEnd.isEmpty || fmtEnd == 'TBD')) {
       return 'Time: TBD';
     }
     if (fmtStart.isEmpty || fmtStart == 'TBD') return 'Time: $fmtEnd';
@@ -337,14 +339,10 @@ class _UserPovSessionsScreenState extends ConsumerState<UserPovSessionsScreen>
       ),
       child: Container(
         decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(16),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Colors.white,
-              Colors.grey.shade50,
-            ],
+          border: Border.all(
+            color: Theme.of(context).dividerColor,
           ),
         ),
         child: Padding(
@@ -441,12 +439,15 @@ class _UserPovSessionsScreenState extends ConsumerState<UserPovSessionsScreen>
                       padding: const EdgeInsets.only(bottom: 8.0),
                       child: Row(
                         children: [
-                          Icon(Icons.access_time, size: 16, color: Colors.grey.shade600),
+                          Icon(Icons.access_time,
+                              size: 16, color: Colors.grey.shade600),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              _formatSessionTimeRange(a['start_time'], a['end_time']),
-                              style: TextStyle(fontSize: 13, color: Colors.grey.shade800),
+                              _formatSessionTimeRange(
+                                  a['start_time'], a['end_time']),
+                              style: TextStyle(
+                                  fontSize: 13, color: Colors.grey.shade800),
                             ),
                           ),
                         ],
@@ -620,7 +621,7 @@ class _UserPovSessionsScreenState extends ConsumerState<UserPovSessionsScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -644,9 +645,9 @@ class _UserPovSessionsScreenState extends ConsumerState<UserPovSessionsScreen>
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Theme.of(context).cardColor,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppTheme.borderColor),
+                border: Border.all(color: Theme.of(context).dividerColor),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withOpacity(0.04),

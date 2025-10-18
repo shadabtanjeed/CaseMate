@@ -338,7 +338,7 @@ Hello! I'm LegalBot, your AI legal assistant. How can I help you today?
   Widget _buildModeSelector() {
     return Container(
       padding: const EdgeInsets.all(12),
-      color: Colors.white,
+      color: Theme.of(context).scaffoldBackgroundColor,
       child: Row(
         children: [
           Expanded(child: _buildModeButton('General Advice', 'general')),
@@ -361,8 +361,11 @@ Hello! I'm LegalBot, your AI legal assistant. How can I help you today?
       },
       style: ElevatedButton.styleFrom(
         backgroundColor:
-            isSelected ? AppTheme.primaryBlue : AppTheme.background,
-        foregroundColor: isSelected ? Colors.white : AppTheme.textSecondary,
+            isSelected ? AppTheme.primaryBlue : Theme.of(context).cardColor,
+        foregroundColor: isSelected
+            ? Colors.white
+            : Theme.of(context).textTheme.bodyMedium?.color ??
+                AppTheme.textSecondary,
         elevation: 0,
       ),
       child: Text(label),
@@ -396,7 +399,9 @@ Hello! I'm LegalBot, your AI legal assistant. How can I help you today?
                   decoration: BoxDecoration(
                     color: message.isBot
                         ? AppTheme.accentBlue.withOpacity(0.2)
-                        : AppTheme.borderColor,
+                        : Theme.of(context).brightness == Brightness.dark
+                            ? const Color(0xFF404040)
+                            : const Color(0xFFE8E8E8),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   // render markdown for bot messages, plain text for user messages
@@ -407,12 +412,22 @@ Hello! I'm LegalBot, your AI legal assistant. How can I help you today?
                           styleSheet:
                               MarkdownStyleSheet.fromTheme(Theme.of(context))
                                   .copyWith(
-                            p: const TextStyle(color: AppTheme.textPrimary),
+                            p: TextStyle(
+                              color: Theme.of(context)
+                                      .textTheme
+                                      .bodyLarge
+                                      ?.color ??
+                                  AppTheme.textPrimary,
+                            ),
                           ),
                         )
                       : Text(
                           message.message,
-                          style: const TextStyle(color: AppTheme.textPrimary),
+                          style: TextStyle(
+                            color:
+                                Theme.of(context).textTheme.bodyLarge?.color ??
+                                    AppTheme.textPrimary,
+                          ),
                         ),
                 ),
                 const SizedBox(height: 4),
@@ -432,13 +447,14 @@ Hello! I'm LegalBot, your AI legal assistant. How can I help you today?
           ),
           if (!message.isBot) ...[
             const SizedBox(width: 8),
-            const CircleAvatar(
+            CircleAvatar(
               radius: 16,
-              backgroundColor: AppTheme.borderColor,
+              backgroundColor: Theme.of(context).dividerColor,
               child: Icon(
                 Icons.person,
                 size: 16,
-                color: AppTheme.textSecondary,
+                color: Theme.of(context).textTheme.bodyMedium?.color ??
+                    AppTheme.textSecondary,
               ),
             ),
           ],
@@ -450,9 +466,13 @@ Hello! I'm LegalBot, your AI legal assistant. How can I help you today?
   Widget _buildInputArea() {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: AppTheme.borderColor)),
+      decoration: BoxDecoration(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        border: Border(
+          top: BorderSide(
+            color: Theme.of(context).dividerColor,
+          ),
+        ),
       ),
       child: SafeArea(
         child: Row(
@@ -465,7 +485,8 @@ Hello! I'm LegalBot, your AI legal assistant. How can I help you today?
                       content: Text('Attachment feature coming soon')),
                 );
               },
-              color: AppTheme.textSecondary,
+              color: Theme.of(context).textTheme.bodyMedium?.color ??
+                  AppTheme.textSecondary,
             ),
             Expanded(
               child: RawKeyboardListener(

@@ -49,8 +49,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       parent: _animController,
       curve: const Interval(0.0, 0.25, curve: Curves.easeOut),
     );
-    _headerSlide = Tween<Offset>(begin: const Offset(0, -0.08), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _animController, curve: Curves.easeOut));
+    _headerSlide =
+        Tween<Offset>(begin: const Offset(0, -0.08), end: Offset.zero).animate(
+            CurvedAnimation(parent: _animController, curve: Curves.easeOut));
 
     // start the animation after first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -77,7 +78,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -199,15 +200,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 decoration: InputDecoration(
                   prefixIcon: const Icon(Icons.search),
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor: Theme.of(context).inputDecorationTheme.fillColor,
                   hintText: 'Search lawyers or specializations',
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide.none,
                   ),
                 ),
-                style: const TextStyle(
-                  color: AppTheme.textPrimary,
+                style: TextStyle(
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
                 ),
               ),
               const SizedBox(height: 4),
@@ -246,10 +247,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       if (key.contains('civil')) return Icons.balance;
       if (key.contains('family')) return Icons.family_restroom;
       if (key.contains('property') || key.contains('real')) return Icons.home;
-      if (key.contains('corporate') || key.contains('business')) return Icons.business;
+      if (key.contains('corporate') || key.contains('business'))
+        return Icons.business;
       if (key.contains('tax')) return Icons.account_balance;
       if (key.contains('immigration')) return Icons.flight_takeoff;
-      if (key.contains('employment') || key.contains('labour')) return Icons.work;
+      if (key.contains('employment') || key.contains('labour'))
+        return Icons.work;
       // default icon
       return Icons.school;
     }
@@ -267,7 +270,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         const SizedBox(height: 16),
         specAsync.when(
           data: (specs) {
-            if (specs.isEmpty) return const Center(child: Text('No categories'));
+            if (specs.isEmpty)
+              return const Center(child: Text('No categories'));
             return GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -300,9 +304,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                       ).animate(tileAnim),
                       child: Container(
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: Theme.of(context).cardColor,
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: AppTheme.borderColor),
+                          border: Border.all(
+                            color: Theme.of(context).dividerColor,
+                          ),
                         ),
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -320,7 +326,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                               ),
                             ),
                             const SizedBox(height: 8),
-                            Text(label, style: Theme.of(context).textTheme.bodyMedium),
+                            Text(label,
+                                style: Theme.of(context).textTheme.bodyMedium),
                           ],
                         ),
                       ),
@@ -341,9 +348,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.borderColor),
+        border: Border.all(color: Theme.of(context).dividerColor),
       ),
       child: Row(
         children: [
@@ -566,9 +573,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.borderColor),
+        border: Border.all(color: Theme.of(context).dividerColor),
       ),
       child: Column(
         children: [
@@ -592,17 +599,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   children: [
                     Text(
                       lawyerName,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
-                        color: AppTheme.textPrimary,
+                        color: Theme.of(context).textTheme.bodyLarge?.color,
                       ),
                     ),
                     Text(
                       caseType,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14,
-                        color: AppTheme.textSecondary,
+                        color: Theme.of(context).textTheme.bodyMedium?.color,
                       ),
                     ),
                   ],
@@ -663,9 +670,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   Widget _buildBottomNav(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: AppTheme.borderColor, width: 1)),
+      decoration: BoxDecoration(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        border: Border(
+            top: BorderSide(color: Theme.of(context).dividerColor, width: 1)),
       ),
       child: SafeArea(
         child: Padding(
