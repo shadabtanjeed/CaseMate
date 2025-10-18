@@ -107,7 +107,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
           currency: SSLCurrencyType.BDT,
           product_category: "Legal Consultation",
           sdkType:
-              SSLCSdkType.TESTBOX, // Change to SSLCSdkType.LIVE for production
+          SSLCSdkType.TESTBOX, // Change to SSLCSdkType.LIVE for production
           store_id: _storeId,
           store_passwd: _storePassword,
           total_amount: amount,
@@ -149,7 +149,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
       case "VALID":
       case "VALIDATED":
       case "SUCCESS":
-        // Payment successful, proceed to book appointment
+      // Payment successful, proceed to book appointment
         _bookAppointmentAfterPayment(result);
         break;
       case "FAILED":
@@ -212,17 +212,60 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
         consultationType: 'video',
       );
 
+      // Debug: Print the full response to see its structure
+      debugPrint('=== APPOINTMENT CREATION RESPONSE ===');
+      debugPrint(appointmentResult.toString());
+      debugPrint('=== Response Keys: ${appointmentResult.keys.toList()} ===');
+
       if (appointmentResult['success'] != true) {
         _showErrorDialog(
             appointmentResult['message'] ?? 'Failed to create appointment');
         return;
       }
 
-      // Get appointment ID from response
-      final appointmentId = appointmentResult['appointment']?['appointment_id'];
+      // Get appointment ID from response - handle multiple possible structures
+      dynamic appointmentId;
 
-      if (appointmentId == null) {
-        _showErrorDialog('Failed to get appointment ID');
+      // Try different possible response structures
+      if (appointmentResult.containsKey('appointment_id')) {
+        // Direct: { "appointment_id": "123", "success": true }
+        appointmentId = appointmentResult['appointment_id'];
+        debugPrint('✅ Found appointment_id at root level');
+      } else if (appointmentResult.containsKey('data')) {
+        // Nested in data: { "data": { "appointment_id": "123" } }
+        final data = appointmentResult['data'];
+        if (data is Map) {
+          appointmentId = data['appointment_id'] ?? data['id'];
+          debugPrint('✅ Found appointment_id in data object');
+        }
+      } else if (appointmentResult.containsKey('appointment')) {
+        // Nested in appointment: { "appointment": { "appointment_id": "123" } }
+        final appointment = appointmentResult['appointment'];
+        if (appointment is Map) {
+          appointmentId = appointment['appointment_id'] ?? appointment['id'];
+          debugPrint('✅ Found appointment_id in appointment object');
+        }
+      } else if (appointmentResult.containsKey('id')) {
+        // Just id: { "id": "123", "success": true }
+        appointmentId = appointmentResult['id'];
+        debugPrint('✅ Found id at root level');
+      }
+
+      // Convert to String if needed
+      if (appointmentId != null) {
+        appointmentId = appointmentId.toString();
+        debugPrint('✅ Appointment ID: $appointmentId');
+      }
+
+      if (appointmentId == null || appointmentId.isEmpty) {
+        debugPrint('❌ ERROR: Could not extract appointment_id from response');
+        debugPrint('Available keys: ${appointmentResult.keys.toList()}');
+        debugPrint('Full response: $appointmentResult');
+        _showErrorDialog(
+          'Failed to get appointment ID from server response.\n'
+              'Transaction ID: ${paymentResult.tranId}\n'
+              'Please contact support.',
+        );
         return;
       }
 
@@ -243,6 +286,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
             'Appointment created but payment recording failed. Please contact support with transaction ID: ${paymentResult.tranId}');
       }
     } catch (e) {
+      debugPrint('❌ ERROR in _bookAppointmentAfterPayment: ${e.toString()}');
       _showErrorDialog('Error: ${e.toString()}');
     } finally {
       setState(() => _isLoading = false);
@@ -391,230 +435,230 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
       ),
       body: _isLoading
           ? const Center(
-              child: CircularProgressIndicator(
-                color: AppTheme.primaryBlue,
-              ),
-            )
+        child: CircularProgressIndicator(
+          color: AppTheme.primaryBlue,
+        ),
+      )
           : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Payment Summary Card
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Payment Summary',
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Payment Summary Card
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Payment Summary',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 18,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        const CircleAvatar(
+                          radius: 30,
+                          backgroundColor: AppTheme.accentBlue,
+                          child: Text(
+                            'SJ',
                             style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 18,
-                            ),
+                                fontSize: 16, color: Colors.white),
                           ),
-                          const SizedBox(height: 16),
-                          Row(
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const CircleAvatar(
-                                radius: 30,
-                                backgroundColor: AppTheme.accentBlue,
-                                child: Text(
-                                  'SJ',
-                                  style: TextStyle(
-                                      fontSize: 16, color: Colors.white),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      widget.lawyer.name,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                    Text(
-                                      widget.lawyer.specialization,
-                                      style: const TextStyle(
-                                        color: AppTheme.textSecondary,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          const Divider(),
-                          const SizedBox(height: 12),
-                          _buildSummaryRow(
-                            Icons.calendar_today,
-                            'Date',
-                            widget.selectedDate,
-                          ),
-                          const SizedBox(height: 8),
-                          _buildSummaryRow(
-                            Icons.access_time,
-                            'Time',
-                            formattedTime,
-                          ),
-                          const SizedBox(height: 8),
-                          _buildSummaryRow(
-                            Icons.category,
-                            'Case Type',
-                            widget.caseCategory,
-                          ),
-                          const SizedBox(height: 16),
-                          const Divider(),
-                          const SizedBox(height: 12),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text(
-                                'Total Amount',
-                                style: TextStyle(
-                                  fontSize: 18,
+                              Text(
+                                widget.lawyer.name,
+                                style: const TextStyle(
                                   fontWeight: FontWeight.w600,
+                                  fontSize: 14,
                                 ),
                               ),
                               Text(
-                                '৳${widget.lawyer.fee}',
+                                widget.lawyer.specialization,
                                 style: const TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppTheme.primaryBlue,
+                                  color: AppTheme.textSecondary,
+                                  fontSize: 12,
                                 ),
                               ),
                             ],
                           ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Payment Method Selection
-                  const Text(
-                    'Select Payment Method',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // SSLCommerz Option
-                  Card(
-                    child: RadioListTile<String>(
-                      value: 'sslcommerz',
-                      groupValue: _selectedPaymentMethod,
-                      onChanged: (value) {
-                        setState(() {
-                          _selectedPaymentMethod = value!;
-                        });
-                      },
-                      title: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: AppTheme.primaryBlue.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Icon(
-                              Icons.credit_card,
-                              color: AppTheme.primaryBlue,
-                              size: 24,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          const Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'SSLCommerz',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                                Text(
-                                  'Pay with card, mobile banking & more',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: AppTheme.textSecondary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      activeColor: AppTheme.primaryBlue,
-                    ),
-                  ),
-
-                  const SizedBox(height: 32),
-
-                  // Pay Now Button
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: _selectedPaymentMethod == 'sslcommerz'
-                          ? _initiateSSLCommerzPayment
-                          : null,
-                      icon: const Icon(Icons.payment),
-                      label: Text('Pay ৳${widget.lawyer.fee}'),
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        backgroundColor: AppTheme.primaryBlue,
-                        foregroundColor: Colors.white,
-                        disabledBackgroundColor: Colors.grey[300],
-                        disabledForegroundColor: Colors.grey[600],
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
                         ),
-                      ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Security Info
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: Colors.green.withOpacity(0.3),
-                      ),
+                    const SizedBox(height: 16),
+                    const Divider(),
+                    const SizedBox(height: 12),
+                    _buildSummaryRow(
+                      Icons.calendar_today,
+                      'Date',
+                      widget.selectedDate,
                     ),
-                    child: const Row(
+                    const SizedBox(height: 8),
+                    _buildSummaryRow(
+                      Icons.access_time,
+                      'Time',
+                      formattedTime,
+                    ),
+                    const SizedBox(height: 8),
+                    _buildSummaryRow(
+                      Icons.category,
+                      'Case Type',
+                      widget.caseCategory,
+                    ),
+                    const SizedBox(height: 16),
+                    const Divider(),
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Icon(Icons.lock, color: Colors.green, size: 20),
-                        SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Your payment is secure and encrypted',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.green,
-                            ),
+                        const Text(
+                          'Total Amount',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Text(
+                          '৳${widget.lawyer.fee}',
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.primaryBlue,
                           ),
                         ),
                       ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Payment Method Selection
+            const Text(
+              'Select Payment Method',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // SSLCommerz Option
+            Card(
+              child: RadioListTile<String>(
+                value: 'sslcommerz',
+                groupValue: _selectedPaymentMethod,
+                onChanged: (value) {
+                  setState(() {
+                    _selectedPaymentMethod = value!;
+                  });
+                },
+                title: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryBlue.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(
+                        Icons.credit_card,
+                        color: AppTheme.primaryBlue,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'SSLCommerz',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 16,
+                            ),
+                          ),
+                          Text(
+                            'Pay with card, mobile banking & more',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppTheme.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                activeColor: AppTheme.primaryBlue,
+              ),
+            ),
+
+            const SizedBox(height: 32),
+
+            // Pay Now Button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _selectedPaymentMethod == 'sslcommerz'
+                    ? _initiateSSLCommerzPayment
+                    : null,
+                icon: const Icon(Icons.payment),
+                label: Text('Pay ৳${widget.lawyer.fee}'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  backgroundColor: AppTheme.primaryBlue,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: Colors.grey[300],
+                  disabledForegroundColor: Colors.grey[600],
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Security Info
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.green.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: Colors.green.withOpacity(0.3),
+                ),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.lock, color: Colors.green, size: 20),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Your payment is secure and encrypted',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.green,
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
+          ],
+        ),
+      ),
     );
   }
 

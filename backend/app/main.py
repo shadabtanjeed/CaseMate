@@ -12,7 +12,7 @@ from .routes import (
     schedule_routes,
     appointments,
     meetings,
-    transaction
+    transaction, wallet
 )
 
 
