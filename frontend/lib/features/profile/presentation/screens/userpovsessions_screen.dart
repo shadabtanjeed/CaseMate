@@ -11,7 +11,8 @@ class UserPovSessionsScreen extends ConsumerStatefulWidget {
   const UserPovSessionsScreen({Key? key, this.onBack}) : super(key: key);
 
   @override
-  ConsumerState<UserPovSessionsScreen> createState() => _UserPovSessionsScreenState();
+  ConsumerState<UserPovSessionsScreen> createState() =>
+      _UserPovSessionsScreenState();
 }
 
 class _UserPovSessionsScreenState extends ConsumerState<UserPovSessionsScreen>
@@ -48,10 +49,12 @@ class _UserPovSessionsScreenState extends ConsumerState<UserPovSessionsScreen>
       }
 
       final api = ref.read(apiClientProvider);
-      final resp = await api.get('/appointments/me', headers: ApiConstants.headersWithToken(token));
+      final resp = await api.get('/appointments/me',
+          headers: ApiConstants.headersWithToken(token));
       final data = resp['data'] as List<dynamic>? ?? [];
       setState(() {
-        _appointments = data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+        _appointments =
+            data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
         _isLoading = false;
       });
 
@@ -74,7 +77,9 @@ class _UserPovSessionsScreenState extends ConsumerState<UserPovSessionsScreen>
   // Jitsi join helper - uses appointment_id as room name
   Future<void> _joinJitsiMeeting(Map<String, dynamic> appt) async {
     try {
-      final rawId = (appt['appointment_id'] ?? DateTime.now().millisecondsSinceEpoch).toString();
+      final rawId =
+          (appt['appointment_id'] ?? DateTime.now().millisecondsSinceEpoch)
+              .toString();
       final room = 'casemate-$rawId'.replaceAll(RegExp(r"\s+"), '-');
 
       // optional: pass user display name and email if available
@@ -93,7 +98,7 @@ class _UserPovSessionsScreenState extends ConsumerState<UserPovSessionsScreen>
       final jitsi = JitsiMeet();
       final options = JitsiMeetConferenceOptions(
         room: room,
-        serverURL: 'https://meet.jit.si',
+        serverURL: 'https://jitsi.riot.im/',
         userInfo: JitsiMeetUserInfo(displayName: displayName, email: email),
       );
 
@@ -109,7 +114,8 @@ class _UserPovSessionsScreenState extends ConsumerState<UserPovSessionsScreen>
 
       jitsi.join(options, listener);
     } catch (err) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to join meeting: $err')));
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to join meeting: $err')));
     }
   }
 
@@ -163,11 +169,26 @@ class _UserPovSessionsScreenState extends ConsumerState<UserPovSessionsScreen>
       return 'Today, ${_formatTime(dt)}';
     } else if (appointmentDay == today.add(const Duration(days: 1))) {
       return 'Tomorrow, ${_formatTime(dt)}';
-    } else if (appointmentDay.isAfter(today) && appointmentDay.isBefore(today.add(const Duration(days: 7)))) {
-      final weekday = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][dt.weekday - 1];
+    } else if (appointmentDay.isAfter(today) &&
+        appointmentDay.isBefore(today.add(const Duration(days: 7)))) {
+      final weekday =
+          ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][dt.weekday - 1];
       return '$weekday, ${_formatTime(dt)}';
     } else {
-      final month = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][dt.month - 1];
+      final month = [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec'
+      ][dt.month - 1];
       return '${dt.day} $month ${dt.year}, ${_formatTime(dt)}';
     }
   }
@@ -249,7 +270,8 @@ class _UserPovSessionsScreenState extends ConsumerState<UserPovSessionsScreen>
                   ),
                   const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
                       color: isFinished
                           ? Colors.grey.shade100
@@ -292,32 +314,39 @@ class _UserPovSessionsScreenState extends ConsumerState<UserPovSessionsScreen>
                 child: Column(
                   children: [
                     if ((a['lawyer_name'] ?? '').toString().isNotEmpty) ...[
-                      _buildInfoRow(Icons.person_outline, 'Lawyer', a['lawyer_name'] ?? ''),
+                      _buildInfoRow(Icons.person_outline, 'Lawyer',
+                          a['lawyer_name'] ?? ''),
                       const SizedBox(height: 6),
                     ],
-                    _buildInfoRow(Icons.email_outlined, 'Email', a['lawyer_email'] ?? 'Not assigned'),
+                    _buildInfoRow(Icons.email_outlined, 'Email',
+                        a['lawyer_email'] ?? 'Not assigned'),
                     const SizedBox(height: 6),
                     if ((a['lawyer_phone'] ?? '').toString().isNotEmpty) ...[
-                      _buildInfoRow(Icons.phone, 'Phone', a['lawyer_phone'] ?? ''),
+                      _buildInfoRow(
+                          Icons.phone, 'Phone', a['lawyer_phone'] ?? ''),
                       const SizedBox(height: 6),
                     ],
-                    _buildInfoRow(Icons.video_call_outlined, 'Type', a['consultation_type'] ?? 'Not specified'),
+                    _buildInfoRow(Icons.video_call_outlined, 'Type',
+                        a['consultation_type'] ?? 'Not specified'),
                   ],
                 ),
               ),
-              if (a['description'] != null && a['description'].toString().trim().isNotEmpty) ...[
+              if (a['description'] != null &&
+                  a['description'].toString().trim().isNotEmpty) ...[
                 const SizedBox(height: 16),
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: Colors.blue.shade50.withOpacity(0.3),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.blue.shade100.withOpacity(0.5)),
+                    border: Border.all(
+                        color: Colors.blue.shade100.withOpacity(0.5)),
                   ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.description_outlined, size: 16, color: Colors.grey.shade600),
+                      Icon(Icons.description_outlined,
+                          size: 16, color: Colors.grey.shade600),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
@@ -532,7 +561,8 @@ class _UserPovSessionsScreenState extends ConsumerState<UserPovSessionsScreen>
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.error_outline, size: 64, color: Colors.red.shade300),
+                        Icon(Icons.error_outline,
+                            size: 64, color: Colors.red.shade300),
                         const SizedBox(height: 16),
                         Text(
                           'Error loading sessions',
@@ -545,7 +575,8 @@ class _UserPovSessionsScreenState extends ConsumerState<UserPovSessionsScreen>
                         const SizedBox(height: 8),
                         Text(
                           _error!,
-                          style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                          style: TextStyle(
+                              color: Colors.grey.shade600, fontSize: 13),
                           textAlign: TextAlign.center,
                         ),
                       ],
