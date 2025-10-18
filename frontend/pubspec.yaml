@@ -17,6 +17,7 @@ dependencies:
   flutter_riverpod: ^2.4.9
 
   # HTTP & Network
+  image_picker: ^1.0.7
   http: ^1.1.2
 
   # Secure Storage
@@ -31,6 +32,8 @@ dependencies:
   flutter_markdown: ^0.7.7+1
   flutter_animate: ^4.5.2
   jitsi_meet_flutter_sdk: ^11.6.0
+  flutter_sslcommerz: ^2.5.1
+  fluttertoast: ^9.0.0
 
 dev_dependencies:
   flutter_test:

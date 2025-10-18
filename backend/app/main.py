@@ -12,6 +12,7 @@ from .routes import (
     schedule_routes,
     appointments,
     meetings,
+    transaction
 )
 
 
@@ -96,6 +97,8 @@ app.include_router(schedule_routes.router, prefix="/api")
 app.include_router(lawyers.router, prefix="/api")
 app.include_router(appointments.router, prefix="/api")
 app.include_router(meetings.router, prefix="/api")
+app.include_router(transaction.router, prefix="/api")
+
 
 
 @app.get("/")
