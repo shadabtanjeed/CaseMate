@@ -1,6 +1,13 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 
+
+import 'package:legal_assist/features/lawyer/data/models/client_model.dart';
+import 'package:legal_assist/features/lawyer/data/lawyer_client_service.dart';
+import 'package:legal_assist/features/lawyer/data/models/case_model.dart';
+import 'package:legal_assist/features/lawyer/presentation/screens/client_cases_screen.dart';
+
+
 class LawyerClientsScreen extends StatefulWidget {
   final VoidCallback onBack;
 
@@ -14,11 +21,26 @@ class _LawyerClientsScreenState extends State<LawyerClientsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final TextEditingController _searchController = TextEditingController();
+  final LawyerClientService _clientService = LawyerClientService();
+
+  List<ClientModel> _allClients = [];
+  List<ClientModel> _filteredClients = [];
+  bool _isLoading = true;
+  String _currentFilter = 'all';
+  String _lawyerEmail = '';
+
+  // Stats
+  int _totalClients = 0;
+  int _activeClients = 0;
+  int _pastClients = 0;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(_handleTabChange);
+    _loadLawyerEmail();
+    _loadClients();
   }
 
   @override
@@ -26,6 +48,79 @@ class _LawyerClientsScreenState extends State<LawyerClientsScreen>
     _tabController.dispose();
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _loadLawyerEmail() {
+    // TODO: Get from SharedPreferences or auth service
+    _lawyerEmail = 'shadabtanjeed@iut-dhaka.edu';
+  }
+
+  void _handleTabChange() {
+    if (_tabController.indexIsChanging) {
+      setState(() {
+        _currentFilter = ['all', 'active', 'past'][_tabController.index];
+        _filterClients();
+      });
+    }
+  }
+
+  Future<void> _loadClients() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final clients = await _clientService.getClients(
+        lawyerEmail: _lawyerEmail,
+      );
+
+      setState(() {
+        _allClients = clients;
+        _calculateStats();
+        _filterClients();
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading clients: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _calculateStats() {
+    _totalClients = _allClients.length;
+    _activeClients = _allClients.where((c) => c.isActive).length;
+    _pastClients = _allClients.where((c) => !c.isActive).length;
+  }
+
+  void _filterClients() {
+    setState(() {
+      if (_currentFilter == 'all') {
+        _filteredClients = _allClients;
+      } else if (_currentFilter == 'active') {
+        _filteredClients = _allClients.where((c) => c.isActive).toList();
+      } else {
+        _filteredClients = _allClients.where((c) => !c.isActive).toList();
+      }
+    });
+  }
+
+  void _searchClients(String query) {
+    setState(() {
+      if (query.isEmpty) {
+        _filterClients();
+      } else {
+        _filteredClients = _allClients
+            .where((c) =>
+                c.fullName.toLowerCase().contains(query.toLowerCase()) ||
+                c.recentCaseTitle.toLowerCase().contains(query.toLowerCase()))
+            .toList();
+      }
+    });
   }
 
   @override
@@ -39,23 +134,12 @@ class _LawyerClientsScreenState extends State<LawyerClientsScreen>
             _buildSearchBar(),
             _buildTabBar(),
             Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildAllClientsTab(),
-                  _buildActiveClientsTab(),
-                  _buildPastClientsTab(),
-                ],
-              ),
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _buildClientsList(),
             ),
           ],
         ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {},
-        backgroundColor: AppTheme.primaryBlue,
-        icon: const Icon(Icons.person_add, color: Colors.white),
-        label: const Text('Add Client', style: TextStyle(color: Colors.white)),
       ),
     );
   }
@@ -94,9 +178,9 @@ class _LawyerClientsScreenState extends State<LawyerClientsScreen>
               color: Colors.white.withOpacity(0.2),
               borderRadius: BorderRadius.circular(20),
             ),
-            child: const Text(
-              '47 Total',
-              style: TextStyle(
+            child: Text(
+              '$_totalClients Total',
+              style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.w600,
               ),
@@ -112,13 +196,19 @@ class _LawyerClientsScreenState extends State<LawyerClientsScreen>
       padding: const EdgeInsets.all(16),
       child: TextField(
         controller: _searchController,
+        onChanged: _searchClients,
         decoration: InputDecoration(
           hintText: 'Search clients by name or case...',
           prefixIcon: const Icon(Icons.search),
-          suffixIcon: IconButton(
-            icon: const Icon(Icons.filter_list),
-            onPressed: () => _showFilterSheet(context),
-          ),
+          suffixIcon: _searchController.text.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.clear),
+                  onPressed: () {
+                    _searchController.clear();
+                    _searchClients('');
+                  },
+                )
+              : null,
           filled: true,
           fillColor: Colors.white,
           border: OutlineInputBorder(
@@ -145,129 +235,54 @@ class _LawyerClientsScreenState extends State<LawyerClientsScreen>
         ),
         labelColor: Colors.white,
         unselectedLabelColor: AppTheme.textPrimary,
-        tabs: const [
-          Tab(text: 'All (47)'),
-          Tab(text: 'Active (28)'),
-          Tab(text: 'Past (19)'),
+        tabs: [
+          Tab(text: 'All ($_totalClients)'),
+          Tab(text: 'Active ($_activeClients)'),
+          Tab(text: 'Past ($_pastClients)'),
         ],
       ),
     );
   }
 
-  Widget _buildAllClientsTab() {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        _buildClientCard(
-          'John Mitchell',
-          'Criminal Defense',
-          'Active',
-          '3 sessions',
-          'Last: Oct 10, 2025',
-          Icons.gavel,
-          AppTheme.primaryBlue,
-          true,
+  Widget _buildClientsList() {
+    if (_filteredClients.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.people_outline, size: 64, color: AppTheme.textSecondary),
+            const SizedBox(height: 16),
+            Text(
+              _searchController.text.isNotEmpty
+                  ? 'No clients found matching "${_searchController.text}"'
+                  : 'No clients found',
+              style: const TextStyle(
+                fontSize: 16,
+                color: AppTheme.textSecondary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
         ),
-        _buildClientCard(
-          'Maria Garcia',
-          'Family Law - Divorce',
-          'Active',
-          '7 sessions',
-          'Last: Oct 11, 2025',
-          Icons.people,
-          AppTheme.accentBlue,
-          true,
-        ),
-        _buildClientCard(
-          'David Lee',
-          'Property Dispute',
-          'Active',
-          '2 sessions',
-          'Last: Oct 9, 2025',
-          Icons.home,
-          Colors.orange,
-          true,
-        ),
-        _buildClientCard(
-          'Sarah Williams',
-          'Contract Review',
-          'Completed',
-          '4 sessions',
-          'Ended: Sep 28, 2025',
-          Icons.description,
-          AppTheme.textSecondary,
-          false,
-        ),
-      ],
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadClients,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: _filteredClients.length,
+        itemBuilder: (context, index) {
+          return _buildClientCard(_filteredClients[index]);
+        },
+      ),
     );
   }
 
-  Widget _buildActiveClientsTab() {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        _buildClientCard(
-          'John Mitchell',
-          'Criminal Defense',
-          'Active',
-          '3 sessions',
-          'Next: Oct 12, 10:00 AM',
-          Icons.gavel,
-          AppTheme.primaryBlue,
-          true,
-        ),
-        _buildClientCard(
-          'Maria Garcia',
-          'Family Law - Divorce',
-          'Active',
-          '7 sessions',
-          'Next: Oct 12, 2:00 PM',
-          Icons.people,
-          AppTheme.accentBlue,
-          true,
-        ),
-      ],
-    );
-  }
+  Widget _buildClientCard(ClientModel client) {
+    final icon = _getCaseTypeIcon(client.recentCaseType);
+    final color = _getCaseTypeColor(client.recentCaseType);
 
-  Widget _buildPastClientsTab() {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        _buildClientCard(
-          'Sarah Williams',
-          'Contract Review',
-          'Completed',
-          '4 sessions',
-          'Ended: Sep 28, 2025',
-          Icons.description,
-          AppTheme.textSecondary,
-          false,
-        ),
-        _buildClientCard(
-          'Robert Brown',
-          'Corporate Merger',
-          'Completed',
-          '12 sessions',
-          'Ended: Sep 15, 2025',
-          Icons.business,
-          AppTheme.textSecondary,
-          false,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildClientCard(
-    String name,
-    String caseType,
-    String status,
-    String sessions,
-    String lastDate,
-    IconData icon,
-    Color color,
-    bool isActive,
-  ) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
@@ -297,7 +312,7 @@ class _LawyerClientsScreenState extends State<LawyerClientsScreen>
                       children: [
                         Expanded(
                           child: Text(
-                            name,
+                            client.fullName,
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
@@ -309,16 +324,16 @@ class _LawyerClientsScreenState extends State<LawyerClientsScreen>
                           padding: const EdgeInsets.symmetric(
                               horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
-                            color: isActive
+                            color: client.isActive
                                 ? Colors.green.withOpacity(0.1)
                                 : AppTheme.borderColor,
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
-                            status,
+                            client.statusText,
                             style: TextStyle(
                               fontSize: 11,
-                              color: isActive
+                              color: client.isActive
                                   ? Colors.green[700]
                                   : AppTheme.textSecondary,
                               fontWeight: FontWeight.w500,
@@ -329,11 +344,15 @@ class _LawyerClientsScreenState extends State<LawyerClientsScreen>
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      caseType,
+                      client.recentCaseTitle.isNotEmpty
+                          ? client.recentCaseTitle
+                          : client.recentCaseType,
                       style: const TextStyle(
                         fontSize: 14,
                         color: AppTheme.textSecondary,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
@@ -350,14 +369,14 @@ class _LawyerClientsScreenState extends State<LawyerClientsScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Sessions',
+                      'Cases',
                       style: TextStyle(
                         fontSize: 12,
                         color: AppTheme.textSecondary,
                       ),
                     ),
                     Text(
-                      sessions,
+                      client.sessionCount,
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
@@ -372,14 +391,14 @@ class _LawyerClientsScreenState extends State<LawyerClientsScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      isActive ? 'Next' : 'Last',
+                      client.isActive ? 'Last' : 'Ended',
                       style: const TextStyle(
                         fontSize: 12,
                         color: AppTheme.textSecondary,
                       ),
                     ),
                     Text(
-                      lastDate,
+                      client.lastDateText,
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
@@ -396,17 +415,23 @@ class _LawyerClientsScreenState extends State<LawyerClientsScreen>
             children: [
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: () {},
+                  onPressed: () => _viewClientCases(client),
                   icon: const Icon(Icons.folder_open, size: 18),
-                  label: const Text('View Case'),
+                  label: const Text('View Cases'),
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: ElevatedButton.icon(
-                  onPressed: () {},
-                  icon:
-                      const Icon(Icons.message, size: 18, color: Colors.white),
+                  onPressed: () {
+                    // TODO: Implement messaging
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Messaging feature coming soon!'),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.message, size: 18, color: Colors.white),
                   label: const Text('Message'),
                 ),
               ),
@@ -417,65 +442,43 @@ class _LawyerClientsScreenState extends State<LawyerClientsScreen>
     );
   }
 
-  void _showFilterSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Filter Clients',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 24),
-            const Text('Case Type'),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              children: [
-                FilterChip(label: const Text('All'), onSelected: (val) {}),
-                FilterChip(label: const Text('Criminal'), onSelected: (val) {}),
-                FilterChip(label: const Text('Family'), onSelected: (val) {}),
-                FilterChip(
-                    label: const Text('Corporate'), onSelected: (val) {}),
-              ],
-            ),
-            const SizedBox(height: 16),
-            const Text('Status'),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              children: [
-                FilterChip(label: const Text('Active'), onSelected: (val) {}),
-                FilterChip(
-                    label: const Text('Completed'), onSelected: (val) {}),
-              ],
-            ),
-            const SizedBox(height: 24),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Reset'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Apply'),
-                  ),
-                ),
-              ],
-            ),
-          ],
+  IconData _getCaseTypeIcon(String caseType) {
+    switch (caseType.toLowerCase()) {
+      case 'criminal':
+        return Icons.gavel;
+      case 'family':
+        return Icons.people;
+      case 'property':
+        return Icons.home;
+      case 'corporate':
+        return Icons.business;
+      default:
+        return Icons.description;
+    }
+  }
+
+  Color _getCaseTypeColor(String caseType) {
+    switch (caseType.toLowerCase()) {
+      case 'criminal':
+        return AppTheme.primaryBlue;
+      case 'family':
+        return AppTheme.accentBlue;
+      case 'property':
+        return Colors.orange;
+      case 'corporate':
+        return Colors.purple;
+      default:
+        return AppTheme.textSecondary;
+    }
+  }
+
+  void _viewClientCases(ClientModel client) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ClientCasesScreen(
+          client: client,
+          lawyerEmail: _lawyerEmail,
         ),
       ),
     );

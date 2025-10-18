@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'dart:convert';  // ADDED for base64Decode
+import 'dart:convert'; 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -25,6 +25,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   File? _selectedImage;
   final ImagePicker _picker = ImagePicker();
   bool _isUploading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Refresh user data when screen loads to get latest profile image
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(authProvider.notifier).refreshCurrentUser();
+    });
+  }
 
   Future<void> _pickImage() async {
     try {
@@ -71,19 +80,29 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       // Upload image through auth provider
       await ref.read(authProvider.notifier).updateProfileImage(_selectedImage!);
 
-      // ADDED: Refresh user data to get the updated profile image
+      // Refresh user data to get the updated profile image
       await ref.read(authProvider.notifier).refreshCurrentUser();
 
+      // Clear image cache to force reload
+      imageCache.clear();
+      imageCache.clearLiveImages();
+
       if (mounted) {
+        // Wait longer to ensure the new image URL is in the provider
+        await Future.delayed(const Duration(milliseconds: 300));
+        
+        setState(() {
+          _isUploading = false;
+          // Keep _selectedImage - DON'T clear it yet
+        });
+        
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Profile image updated successfully!'),
             backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
           ),
         );
-        setState(() {
-          _selectedImage = null;
-        });
       }
     } catch (e) {
       if (mounted) {
@@ -93,9 +112,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             backgroundColor: Colors.red,
           ),
         );
-      }
-    } finally {
-      if (mounted) {
         setState(() {
           _isUploading = false;
         });
@@ -109,6 +125,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final user = authState.user;
 
     return Scaffold(
+      backgroundColor: AppTheme.background,
       body: Column(
         children: [
           _buildHeader(context),
@@ -138,7 +155,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   Widget _buildHeader(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 48, 16, 80),
+      padding: const EdgeInsets.fromLTRB(16, 48, 16, 24), // FIXED: Reduced bottom padding from 80 to 24
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           colors: [AppTheme.primaryBlue, AppTheme.accentBlue],
@@ -177,34 +194,44 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final hasProfileImage = user?.profileImageUrl != null && 
                            user!.profileImageUrl!.isNotEmpty;
 
-    return Transform.translate(
-      offset: const Offset(0, -60),
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            children: [
-              Stack(
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          children: [
+            // Profile Image Section - FIXED: Always centered
+            Center(
+              child: Stack(
                 children: [
                   // Profile Image or Initial Avatar
+                  // PRIORITY: Show selected image first, then database image, then initials
                   _selectedImage != null
                       ? CircleAvatar(
-                          radius: 48,
+                          radius: 60,
                           backgroundImage: FileImage(_selectedImage!),
                         )
                       : hasProfileImage
                           ? CircleAvatar(
-                              radius: 48,
-                              backgroundImage: _getImageProvider(user.profileImageUrl!),  // CHANGED
+                              key: ValueKey(user.profileImageUrl), // Simple key
+                              radius: 60,
+                              backgroundImage: _getImageProvider(user.profileImageUrl!),
                               backgroundColor: AppTheme.primaryBlue,
+                              onBackgroundImageError: (exception, stackTrace) {
+                                // If image fails to load, show initials
+                                debugPrint('Error loading profile image: $exception');
+                              },
                             )
                           : CircleAvatar(
-                              radius: 48,
+                              radius: 60,
                               backgroundColor: AppTheme.primaryBlue,
                               child: Text(
                                 initials.isEmpty ? 'U' : initials,
                                 style: const TextStyle(
-                                    color: Colors.white, fontSize: 32),
+                                    color: Colors.white, fontSize: 36),
                               ),
                             ),
                   // Edit Button
@@ -212,68 +239,96 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     right: 0,
                     bottom: 0,
                     child: GestureDetector(
-                      onTap: _pickImage,
+                      onTap: _isUploading ? null : _pickImage,
                       child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(
-                          color: AppTheme.primaryBlue,
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: _isUploading ? Colors.grey : AppTheme.primaryBlue,
                           shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
                         ),
-                        child: const Icon(
-                          Icons.edit,
+                        child: Icon(
+                          _isUploading ? Icons.hourglass_empty : Icons.camera_alt,
                           color: Colors.white,
-                          size: 16,
+                          size: 20,
                         ),
                       ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-              Text(
-                user?.fullName ?? 'User',
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              user?.fullName ?? 'User',
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textPrimary,
               ),
-              Text(
-                user?.email ?? 'user@example.com',
-                style: const TextStyle(color: AppTheme.textSecondary),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              user?.email ?? 'user@example.com',
+              style: const TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 14,
               ),
-              const SizedBox(height: 16),
-              
-              // Save Button (only show if image is selected)
-              if (_selectedImage != null)
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _isUploading ? null : _saveProfileImage,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryBlue,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+              textAlign: TextAlign.center,
+            ),
+            
+            // Save Button (only show if image is selected and not uploading)
+            if (_selectedImage != null) ...[
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _isUploading ? null : _saveProfileImage,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryBlue,
+                    disabledBackgroundColor: Colors.grey,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    child: _isUploading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : const Text(
-                            'Save Profile Image',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
+                    elevation: 0,
                   ),
+                  child: _isUploading
+                      ? Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: const [
+                            SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            ),
+                            SizedBox(width: 12),
+                            Text(
+                              'Uploading...',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        )
+                      : const Text(
+                          'Save Profile Image',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                 ),
+              ),
             ],
-          ),
+          ],
         ),
       ),
     );
@@ -287,7 +342,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           padding: EdgeInsets.symmetric(horizontal: 8),
           child: Text(
             'Account Information',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.textPrimary,
+            ),
           ),
         ),
         const SizedBox(height: 12),
@@ -344,7 +403,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           padding: EdgeInsets.symmetric(horizontal: 8),
           child: Text(
             'Notifications',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.textPrimary,
+            ),
           ),
         ),
         const SizedBox(height: 12),
@@ -379,7 +442,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           padding: EdgeInsets.symmetric(horizontal: 8),
           child: Text(
             'Privacy & Security',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.textPrimary,
+            ),
           ),
         ),
         const SizedBox(height: 12),
@@ -414,7 +481,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           padding: EdgeInsets.symmetric(horizontal: 8),
           child: Text(
             'Support',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.textPrimary,
+            ),
           ),
         ),
         const SizedBox(height: 12),
@@ -432,7 +503,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 leading: const Icon(Icons.logout, color: Colors.red),
                 title: const Text(
                   'Logout',
-                  style: TextStyle(color: Colors.red),
+                  style: TextStyle(color: Colors.red, fontWeight: FontWeight.w500),
                 ),
                 trailing: const Icon(Icons.chevron_right, color: Colors.red),
                 onTap: onLogout,
@@ -440,6 +511,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ],
           ),
         ),
+        const SizedBox(height: 24), // Bottom padding
       ],
     );
   }
@@ -452,10 +524,22 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     VoidCallback? onTap,
   }) {
     return ListTile(
-      leading: Icon(icon, color: AppTheme.textSecondary),
-      title: Text(title),
+      leading: Icon(icon, color: AppTheme.primaryBlue),
+      title: Text(
+        title,
+        style: const TextStyle(
+          fontWeight: FontWeight.w500,
+          color: AppTheme.textPrimary,
+        ),
+      ),
       subtitle: subtitle != null
-          ? Text(subtitle, style: const TextStyle(fontSize: 12))
+          ? Text(
+              subtitle,
+              style: const TextStyle(
+                fontSize: 13,
+                color: AppTheme.textSecondary,
+              ),
+            )
           : null,
       trailing: const Icon(Icons.chevron_right, color: AppTheme.textSecondary),
       onTap: onTap ?? () {},
@@ -469,9 +553,21 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     bool value,
   ) {
     return SwitchListTile(
-      secondary: Icon(icon, color: AppTheme.textSecondary),
-      title: Text(title),
-      subtitle: Text(subtitle, style: const TextStyle(fontSize: 12)),
+      secondary: Icon(icon, color: AppTheme.primaryBlue),
+      title: Text(
+        title,
+        style: const TextStyle(
+          fontWeight: FontWeight.w500,
+          color: AppTheme.textPrimary,
+        ),
+      ),
+      subtitle: Text(
+        subtitle,
+        style: const TextStyle(
+          fontSize: 13,
+          color: AppTheme.textSecondary,
+        ),
+      ),
       value: value,
       onChanged: (val) {
         // TODO: Implement notification preferences
@@ -488,7 +584,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     return (parts[0][0] + parts[1][0]).toUpperCase();
   }
 
-  // ADDED: Helper method to handle base64 images
   ImageProvider _getImageProvider(String imageUrl) {
     if (imageUrl.startsWith('data:image')) {
       // It's a base64 data URI

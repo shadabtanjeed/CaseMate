@@ -1,5 +1,12 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
+import 'package:legal_assist/features/lawyer/data/models/case_model.dart';
+import 'package:legal_assist/features/lawyer/data/lawyer_case_service.dart';
+import 'package:legal_assist/features/lawyer/presentation/screens/case_details_screen.dart';
+import 'package:legal_assist/features/lawyer/presentation/screens/update_case_status_sheet.dart';
+
+
+
 
 class LawyerCasesScreen extends StatefulWidget {
   final VoidCallback onBack;
@@ -13,17 +20,109 @@ class LawyerCasesScreen extends StatefulWidget {
 class _LawyerCasesScreenState extends State<LawyerCasesScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  final LawyerCaseService _caseService = LawyerCaseService();
+  final TextEditingController _searchController = TextEditingController();
+
+  List<CaseModel> _allCases = [];
+  List<CaseModel> _filteredCases = [];
+  bool _isLoading = true;
+  String _currentFilter = 'all';
+  String _lawyerEmail = '';
+
+  // Stats
+  int _activeCount = 0;
+  int _pendingCount = 0;
+  int _totalCount = 0;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
+    _tabController.addListener(_handleTabChange);
+    _loadLawyerEmail();
+    _loadCases();
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _searchController.dispose();
     super.dispose();
+  }
+
+  void _loadLawyerEmail() {
+    // TODO: Get from SharedPreferences or auth service
+    _lawyerEmail = 'shadabtanjeed@iut-dhaka.edu';
+  }
+
+  void _handleTabChange() {
+    if (_tabController.indexIsChanging) {
+      setState(() {
+        _currentFilter = ['all', 'ongoing', 'pending', 'closed'][_tabController.index];
+        _filterCases();
+      });
+    }
+  }
+
+  Future<void> _loadCases() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final cases = await _caseService.getCases(
+        lawyerEmail: _lawyerEmail,
+        searchQuery: _searchController.text,
+      );
+
+      setState(() {
+        _allCases = cases;
+        _calculateStats();
+        _filterCases();
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading cases: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _calculateStats() {
+    _totalCount = _allCases.length;
+    _activeCount = _allCases.where((c) => c.status.toLowerCase() == 'ongoing').length;
+    _pendingCount = _allCases.where((c) => c.status.toLowerCase() == 'pending').length;
+  }
+
+  void _filterCases() {
+    setState(() {
+      if (_currentFilter == 'all') {
+        _filteredCases = _allCases;
+      } else {
+        _filteredCases = _allCases
+            .where((c) => c.status.toLowerCase() == _currentFilter.toLowerCase())
+            .toList();
+      }
+    });
+  }
+
+  void _searchCases(String query) {
+    setState(() {
+      if (query.isEmpty) {
+        _filterCases();
+      } else {
+        _filteredCases = _allCases
+            .where((c) =>
+                c.caseTitle.toLowerCase().contains(query.toLowerCase()) &&
+                (_currentFilter == 'all' ||
+                    c.status.toLowerCase() == _currentFilter))
+            .toList();
+      }
+    });
   }
 
   @override
@@ -34,26 +133,15 @@ class _LawyerCasesScreenState extends State<LawyerCasesScreen>
         child: Column(
           children: [
             _buildHeader(),
+            _buildSearchBar(),
             _buildTabBar(),
             Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildCasesList('all'),
-                  _buildCasesList('active'),
-                  _buildCasesList('pending'),
-                  _buildCasesList('closed'),
-                ],
-              ),
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _buildCasesList(),
             ),
           ],
         ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {},
-        backgroundColor: AppTheme.primaryBlue,
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text('New Case', style: TextStyle(color: Colors.white)),
       ),
     );
   }
@@ -89,8 +177,8 @@ class _LawyerCasesScreenState extends State<LawyerCasesScreen>
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.search, color: Colors.white),
-                onPressed: () {},
+                icon: const Icon(Icons.refresh, color: Colors.white),
+                onPressed: _loadCases,
               ),
             ],
           ),
@@ -98,11 +186,26 @@ class _LawyerCasesScreenState extends State<LawyerCasesScreen>
           Row(
             children: [
               Expanded(
-                  child: _buildHeaderStat('28', 'Active', Icons.folder_open)),
+                child: _buildHeaderStat(
+                  _activeCount.toString(),
+                  'Active',
+                  Icons.folder_open,
+                ),
+              ),
               Expanded(
-                  child:
-                      _buildHeaderStat('12', 'Pending', Icons.hourglass_empty)),
-              Expanded(child: _buildHeaderStat('47', 'Total', Icons.folder)),
+                child: _buildHeaderStat(
+                  _pendingCount.toString(),
+                  'Pending',
+                  Icons.hourglass_empty,
+                ),
+              ),
+              Expanded(
+                child: _buildHeaderStat(
+                  _totalCount.toString(),
+                  'Total',
+                  Icons.folder,
+                ),
+              ),
             ],
           ),
         ],
@@ -141,6 +244,36 @@ class _LawyerCasesScreenState extends State<LawyerCasesScreen>
     );
   }
 
+  Widget _buildSearchBar() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: TextField(
+        controller: _searchController,
+        onChanged: _searchCases,
+        decoration: InputDecoration(
+          hintText: 'Search cases by title...',
+          prefixIcon: const Icon(Icons.search),
+          suffixIcon: _searchController.text.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.clear),
+                  onPressed: () {
+                    _searchController.clear();
+                    _searchCases('');
+                  },
+                )
+              : null,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: AppTheme.borderColor),
+          ),
+          filled: true,
+          fillColor: Colors.white,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        ),
+      ),
+    );
+  }
+
   Widget _buildTabBar() {
     return Container(
       margin: const EdgeInsets.all(16),
@@ -159,7 +292,7 @@ class _LawyerCasesScreenState extends State<LawyerCasesScreen>
         isScrollable: true,
         tabs: const [
           Tab(text: 'All'),
-          Tab(text: 'Active'),
+          Tab(text: 'Ongoing'),
           Tab(text: 'Pending'),
           Tab(text: 'Closed'),
         ],
@@ -167,87 +300,52 @@ class _LawyerCasesScreenState extends State<LawyerCasesScreen>
     );
   }
 
-  Widget _buildCasesList(String filter) {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        if (filter == 'all' || filter == 'active') ...[
-          _buildCaseCard(
-            'Mitchell vs. State',
-            'John Mitchell',
-            'Criminal Defense',
-            'Active',
-            'High',
-            'Court hearing on Oct 18',
-            '75%',
-            0.75,
-            AppTheme.primaryBlue,
-            Colors.red,
-          ),
-          _buildCaseCard(
-            'Garcia Divorce Settlement',
-            'Maria Garcia',
-            'Family Law',
-            'Active',
-            'Medium',
-            'Mediation scheduled Oct 15',
-            '60%',
-            0.6,
-            AppTheme.accentBlue,
-            Colors.orange,
-          ),
-        ],
-        if (filter == 'all' || filter == 'pending') ...[
-          _buildCaseCard(
-            'Lee Property Dispute',
-            'David Lee',
-            'Property Law',
-            'Pending',
-            'Medium',
-            'Awaiting documents',
-            '30%',
-            0.3,
-            Colors.orange,
-            Colors.orange,
-          ),
-        ],
-        if (filter == 'all' || filter == 'closed') ...[
-          _buildCaseCard(
-            'Williams Contract Review',
-            'Sarah Williams',
-            'Corporate Law',
-            'Closed',
-            'Low',
-            'Completed successfully',
-            '100%',
-            1.0,
-            AppTheme.textSecondary,
-            Colors.green,
-          ),
-        ],
-      ],
+  Widget _buildCasesList() {
+    if (_filteredCases.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.folder_open, size: 64, color: AppTheme.textSecondary),
+            const SizedBox(height: 16),
+            Text(
+              _searchController.text.isNotEmpty
+                  ? 'No cases found matching "${_searchController.text}"'
+                  : 'No cases found',
+              style: const TextStyle(
+                fontSize: 16,
+                color: AppTheme.textSecondary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadCases,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: _filteredCases.length,
+        itemBuilder: (context, index) {
+          return _buildCaseCard(_filteredCases[index]);
+        },
+      ),
     );
   }
 
-  Widget _buildCaseCard(
-    String title,
-    String client,
-    String category,
-    String status,
-    String priority,
-    String nextAction,
-    String progress,
-    double progressValue,
-    Color color,
-    Color priorityColor,
-  ) {
+  Widget _buildCaseCard(CaseModel caseModel) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.3), width: 2),
+        border: Border.all(
+          color: caseModel.statusColor.withOpacity(0.3),
+          width: 2,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -255,72 +353,62 @@ class _LawyerCasesScreenState extends State<LawyerCasesScreen>
           Row(
             children: [
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            title,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: AppTheme.textPrimary,
-                            ),
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: priorityColor.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            priority,
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: priorityColor,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        const Icon(Icons.person,
-                            size: 14, color: AppTheme.textSecondary),
-                        const SizedBox(width: 4),
-                        Text(
-                          client,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            color: AppTheme.textSecondary,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Container(
-                          width: 4,
-                          height: 4,
-                          decoration: const BoxDecoration(
-                            color: AppTheme.textSecondary,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          category,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            color: AppTheme.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                child: Text(
+                  caseModel.caseTitle,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _getPriorityColor(caseModel.priorityLevel).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  caseModel.priorityLevel,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: _getPriorityColor(caseModel.priorityLevel),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const Icon(Icons.person, size: 14, color: AppTheme.textSecondary),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  caseModel.userEmail,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppTheme.textSecondary,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Container(
+                width: 4,
+                height: 4,
+                decoration: const BoxDecoration(
+                  color: AppTheme.textSecondary,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                caseModel.caseType,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: AppTheme.textSecondary,
                 ),
               ),
             ],
@@ -330,57 +418,42 @@ class _LawyerCasesScreenState extends State<LawyerCasesScreen>
           const SizedBox(height: 12),
           Row(
             children: [
-              Icon(Icons.flag, size: 16, color: color),
+              Icon(Icons.description, size: 16, color: caseModel.statusColor),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  nextAction,
+                  caseModel.description,
                   style: TextStyle(
                     fontSize: 13,
-                    color: color,
+                    color: caseModel.statusColor,
                     fontWeight: FontWeight.w500,
                   ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
           Row(
+            mainAxisAlignment: MainAxisAlignment.end,
             children: [
               Text(
-                'Progress: $progress',
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: AppTheme.textSecondary,
-                ),
-              ),
-              const Spacer(),
-              Text(
-                status,
+                caseModel.status.toUpperCase(),
                 style: TextStyle(
                   fontSize: 12,
-                  color: color,
+                  color: caseModel.statusColor,
                   fontWeight: FontWeight.w600,
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: 8),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(
-              value: progressValue,
-              backgroundColor: AppTheme.borderColor,
-              color: color,
-              minHeight: 6,
-            ),
           ),
           const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: () {},
+                  onPressed: () => _viewCaseDetails(caseModel),
                   icon: const Icon(Icons.folder_open, size: 18),
                   label: const Text('View Details'),
                   style: OutlinedButton.styleFrom(
@@ -391,7 +464,7 @@ class _LawyerCasesScreenState extends State<LawyerCasesScreen>
               const SizedBox(width: 12),
               Expanded(
                 child: ElevatedButton.icon(
-                  onPressed: () {},
+                  onPressed: () => _updateCaseStatus(caseModel),
                   icon: const Icon(Icons.edit, size: 18, color: Colors.white),
                   label: const Text('Update'),
                   style: ElevatedButton.styleFrom(
@@ -402,6 +475,63 @@ class _LawyerCasesScreenState extends State<LawyerCasesScreen>
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  Color _getPriorityColor(String priority) {
+    switch (priority.toLowerCase()) {
+      case 'high':
+        return Colors.red;
+      case 'medium':
+        return Colors.orange;
+      case 'low':
+        return Colors.green;
+      default:
+        return AppTheme.textSecondary;
+    }
+  }
+
+  void _viewCaseDetails(CaseModel caseModel) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CaseDetailsScreen(caseModel: caseModel),
+      ),
+    );
+  }
+
+  void _updateCaseStatus(CaseModel caseModel) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => UpdateCaseStatusSheet(
+        caseModel: caseModel,
+        onUpdate: (newStatus) async {
+          try {
+            await _caseService.updateCaseStatus(caseModel.id, newStatus);
+            if (mounted) {
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Case status updated successfully'),
+                  backgroundColor: Colors.green,
+                ),
+              );
+              _loadCases(); // Reload cases
+            }
+          } catch (e) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Error updating status: $e'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+          }
+        },
       ),
     );
   }
