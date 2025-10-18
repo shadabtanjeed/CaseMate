@@ -20,6 +20,7 @@ class UserModel extends User {
     super.achievements,
     super.rating,
     super.totalCases,
+    super.profileImageUrl,  // ADDED
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -42,6 +43,7 @@ class UserModel extends User {
       achievements: json['achievements'] as String?,
       rating: (json['rating'] as num?)?.toDouble(),
       totalCases: json['total_cases'] as int?,
+      profileImageUrl: json['profile_image_url'] as String?,  // ADDED
     );
   }
 
@@ -65,6 +67,7 @@ class UserModel extends User {
       'achievements': achievements,
       'rating': rating,
       'total_cases': totalCases,
+      'profile_image_url': profileImageUrl,  // ADDED
     };
   }
 
@@ -88,6 +91,7 @@ class UserModel extends User {
       achievements: achievements,
       rating: rating,
       totalCases: totalCases,
+      profileImageUrl: profileImageUrl,  // ADDED
     );
   }
 }

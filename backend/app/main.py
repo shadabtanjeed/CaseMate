@@ -5,7 +5,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import asyncio
 from .database import connect_to_mongo, close_mongo_connection
-from .routes import auth, chatbot_routes, lawyers, schedule_routes, appointments, transaction, wallet
+from .routes import (
+    auth,
+    chatbot_routes,
+    lawyers,
+    schedule_routes,
+    appointments,
+    meetings,
+    transaction
+)
 
 
 @asynccontextmanager
@@ -52,12 +60,12 @@ async def global_exception_handler(request: Request, exc: Exception):
 
     if isinstance(exc, FastAPIHTTPException):
         logging.info(
-            "HTTPException raised: %s %s %s", request.method, request.url, exc.detail
+            f"HTTPException raised: {request.method} {request.url} → {exc.status_code} {exc.detail}"
         )
         return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
 
     # Log full traceback for unexpected errors and return a generic message
-    logging.exception("Unhandled exception for %s %s", request.method, request.url)
+    logging.exception(f"Unhandled exception for {request.method} {request.url}")
     return JSONResponse(status_code=500, content={"detail": "Internal server error"})
 
 
@@ -70,12 +78,25 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+# Request logging middleware
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    logging.info(
+        f"📨 {request.method} {request.url.path} - Headers: {dict(request.headers)}"
+    )
+    response = await call_next(request)
+    logging.info(f"📤 Response: {response.status_code}")
+    return response
+
+
 # Include routers
 app.include_router(auth.router, prefix="/api")
 app.include_router(chatbot_routes.router, prefix="/api")
 app.include_router(schedule_routes.router, prefix="/api")
 app.include_router(lawyers.router, prefix="/api")
 app.include_router(appointments.router, prefix="/api")
+app.include_router(meetings.router, prefix="/api")
 app.include_router(transaction.router, prefix="/api")
 app.include_router(wallet.router, prefix="/api")
 

@@ -57,6 +57,7 @@ class UserResponse(UserBase):
     rating: Optional[float] = None
     total_cases: Optional[int] = None
     consultation_fee: Optional[float] = None
+    profile_image_url: Optional[str] = None  # ADDED
 
     class Config:
         from_attributes = True

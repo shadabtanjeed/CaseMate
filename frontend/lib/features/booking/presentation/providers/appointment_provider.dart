@@ -38,6 +38,7 @@ final createAppointmentProvider =
     startTime: appointmentData['start_time'],
     endTime: appointmentData['end_time'],
     caseType: appointmentData['case_type'],
+    caseTitle: appointmentData['case_title'],
     description: appointmentData['description'],
     consultationType: appointmentData['consultation_type'],
   );

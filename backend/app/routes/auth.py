@@ -1,5 +1,6 @@
-#routes/auth.py
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile
+import base64
+from bson import ObjectId
 from ..schemas.user import (
     UserRegister,
     UserLogin,
@@ -14,6 +15,7 @@ from ..services.auth_service import auth_service
 from ..services.email_service import email_service
 from ..utils.dependencies import get_current_active_user
 from ..models.user import UserInDB
+from ..db_async import update_one
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -44,6 +46,7 @@ async def register(user_data: UserRegister):
         rating=user.rating,
         total_cases=user.total_cases,
         consultation_fee=user.consultation_fee,
+        profile_image_url=user.profile_image_url,  # ADDED
     )
 
 
@@ -104,6 +107,7 @@ async def get_current_user_info(
         rating=current_user.rating,
         total_cases=current_user.total_cases,
         consultation_fee=current_user.consultation_fee,
+        profile_image_url=current_user.profile_image_url,  # ADDED
     )
 
 
@@ -143,3 +147,69 @@ async def reset_password(reset_data: PasswordReset):
         reset_data.email, reset_data.code, reset_data.new_password
     )
     return {"message": "Password reset successfully"}
+
+
+# ============================================
+# ADDED: Upload Profile Image Endpoint
+# ============================================
+@router.put("/users/profile/image")
+async def update_profile_image(
+    file: UploadFile = File(...),
+    current_user: UserInDB = Depends(get_current_active_user),
+):
+    """Upload and update user profile image"""
+    try:
+        # Validate file type
+        if not file.content_type or not file.content_type.startswith('image/'):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="File must be an image (JPEG, PNG, etc.)"
+            )
+        
+        # Read file contents
+        contents = await file.read()
+        
+        # Check file size (limit to 5MB)
+        max_size = 5 * 1024 * 1024  # 5MB
+        if len(contents) > max_size:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Image too large. Maximum size is 5MB"
+            )
+        
+        # Convert to base64
+        base64_image = base64.b64encode(contents).decode('utf-8')
+        image_url = f"data:{file.content_type};base64,{base64_image}"
+        
+        # Determine collection based on user role
+        collection_name = "lawyers" if current_user.role == "lawyer" else "users"
+        
+        # Update user document in MongoDB - FIX: Don't wrap ID in ObjectId
+        from bson import ObjectId
+        result = await update_one(
+            collection=collection_name,
+            filter={"_id": ObjectId(current_user.id)},  # Convert string back to ObjectId for MongoDB query
+            update={"$set": {"profile_image_url": image_url}}
+        )
+        
+        if result.matched_count == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        
+        return {
+            "success": True,
+            "message": "Profile image updated successfully",
+            "data": {
+                "profileImageUrl": image_url
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to upload image: {str(e)}"
+        )
