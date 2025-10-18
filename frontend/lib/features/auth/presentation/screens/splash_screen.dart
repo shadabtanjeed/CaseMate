@@ -22,58 +22,34 @@ class _SplashScreenState extends State<SplashScreen>
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: const Duration(milliseconds: 2200),
+      duration: const Duration(milliseconds: 1400),
       vsync: this,
     );
 
-    // Initial emerge animation
     _scaleAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.0, 0.35, curve: Curves.elasticOut),
+        curve: const Interval(0.0, 0.34, curve: Curves.easeOutCubic),
       ),
     );
+    _pulseAnimation = AlwaysStoppedAnimation<double>(1.0);
 
-    // Gentle throb/pulse animation
-    _pulseAnimation = TweenSequence<double>([
-      TweenSequenceItem(
-        tween: Tween<double>(begin: 1.0, end: 1.08)
-            .chain(CurveTween(curve: Curves.easeInOut)),
-        weight: 1.0,
-      ),
-      TweenSequenceItem(
-        tween: Tween<double>(begin: 1.08, end: 1.0)
-            .chain(CurveTween(curve: Curves.easeInOut)),
-        weight: 1.0,
-      ),
-    ]).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0.35, 0.65, curve: Curves.easeInOut),
-      ),
-    );
-
-    // Glow intensity animation
     _glowAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.6, 0.85, curve: Curves.easeIn),
+        curve: const Interval(0.56, 0.82, curve: Curves.easeIn),
       ),
     );
 
-    // Glass shine effect - completes before transition
     _shineAnimation = Tween<double>(begin: -1.0, end: 1.5).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.65, 0.95, curve: Curves.easeInOut),
+        curve: const Interval(0.58, 1.0, curve: Curves.easeInOut),
       ),
     );
 
-    _controller.forward();
-
-    // Delay increased to allow shine to complete
-    Future.delayed(const Duration(milliseconds: 2800), () {
-      widget.onComplete();
+    _controller.forward().whenComplete(() {
+      if (mounted) widget.onComplete();
     });
   }
 
@@ -108,7 +84,6 @@ class _SplashScreenState extends State<SplashScreen>
                     child: Stack(
                       alignment: Alignment.center,
                       children: [
-                        // Outer glow effect
                         Container(
                           width: 112,
                           height: 112,
@@ -116,19 +91,18 @@ class _SplashScreenState extends State<SplashScreen>
                             borderRadius: BorderRadius.circular(24),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.white.withOpacity(0.3 * _glowAnimation.value),
-                                blurRadius: 40 * _glowAnimation.value,
-                                spreadRadius: 10 * _glowAnimation.value,
+                                color: Colors.white.withOpacity(0.18 * _glowAnimation.value),
+                                blurRadius: 28 * _glowAnimation.value,
+                                spreadRadius: 6 * _glowAnimation.value,
                               ),
                               BoxShadow(
-                                color: AppTheme.primaryBlue.withOpacity(0.4 * _glowAnimation.value),
-                                blurRadius: 60 * _glowAnimation.value,
-                                spreadRadius: 5 * _glowAnimation.value,
+                                color: AppTheme.primaryBlue.withOpacity(0.24 * _glowAnimation.value),
+                                blurRadius: 40 * _glowAnimation.value,
+                                spreadRadius: 3 * _glowAnimation.value,
                               ),
                             ],
                           ),
                         ),
-                        // Main container
                         ClipRRect(
                           borderRadius: BorderRadius.circular(24),
                           child: Stack(
@@ -152,7 +126,6 @@ class _SplashScreenState extends State<SplashScreen>
                                   color: AppTheme.primaryBlue,
                                 ),
                               ),
-                              // Glass shine effect
                               if (_shineAnimation.value > -1.0 && _shineAnimation.value < 1.5)
                                 Positioned.fill(
                                   child: Transform.translate(
@@ -165,9 +138,9 @@ class _SplashScreenState extends State<SplashScreen>
                                           end: Alignment.centerRight,
                                           colors: [
                                             Colors.transparent,
-                                            Colors.white.withOpacity(0.4),
-                                            Colors.white.withOpacity(0.6),
-                                            Colors.white.withOpacity(0.4),
+                                            Colors.white.withOpacity(0.28),
+                                            Colors.white.withOpacity(0.48),
+                                            Colors.white.withOpacity(0.28),
                                             Colors.transparent,
                                           ],
                                           stops: const [0.0, 0.3, 0.5, 0.7, 1.0],
@@ -185,17 +158,49 @@ class _SplashScreenState extends State<SplashScreen>
                 },
               ),
               const SizedBox(height: 24),
-              FadeTransition(
-                opacity: _controller,
-                child: const Text(
-                  'CaseMate',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 32,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 1.2,
-                  ),
-                ),
+              // Text with synchronized glassy shine using the same _shineAnimation
+              AnimatedBuilder(
+                animation: _controller,
+                builder: (context, child) {
+                  // current shine value from -1.0 .. 1.5
+                  final shine = _shineAnimation.value;
+
+                  return Opacity(
+                    opacity: _controller.value,
+                    child: LayoutBuilder(builder: (context, constraints) {
+                      return ShaderMask(
+                        blendMode: BlendMode.srcATop,
+                        shaderCallback: (Rect bounds) {
+                          final width = bounds.width;
+                          final travel = width + 80.0;
+                          final dx = shine * travel;
+
+                          return LinearGradient(
+                            begin: Alignment.centerLeft,
+                            end: Alignment.centerRight,
+                            colors: [
+                              Colors.transparent,
+                              Colors.white.withOpacity(0.4),
+                              Colors.white.withOpacity(0.6),
+                              Colors.white.withOpacity(0.4),
+                              Colors.transparent,
+                            ],
+                            stops: const [0.0, 0.3, 0.5, 0.7, 1.0],
+                          ).createShader(Rect.fromLTWH(dx - width, 0, width * 2, bounds.height));
+                        },
+                        child: const Text(
+                          'CaseMate',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 32,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                      );
+                    }),
+                  );
+                },
               ),
             ],
           ),
