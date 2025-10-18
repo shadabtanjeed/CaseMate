@@ -141,7 +141,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
     });
 
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
@@ -171,10 +171,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                     borderRadius: BorderRadius.circular(12),
                     child: Container(
                       decoration: BoxDecoration(
+                        color: Theme.of(context).cardColor,
                         border: Border(
-                          top: BorderSide(color: AppTheme.borderColor),
-                          left: BorderSide(color: AppTheme.borderColor),
-                          right: BorderSide(color: AppTheme.borderColor),
+                          top:
+                              BorderSide(color: Theme.of(context).dividerColor),
+                          left:
+                              BorderSide(color: Theme.of(context).dividerColor),
+                          right:
+                              BorderSide(color: Theme.of(context).dividerColor),
                           bottom: BorderSide(color: Colors.transparent),
                         ),
                       ),
@@ -185,9 +189,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                           borderRadius: BorderRadius.circular(12),
                         ),
                         indicatorSize: TabBarIndicatorSize.tab,
-                        indicatorPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                        indicatorPadding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 4),
                         labelColor: Colors.white,
-                        unselectedLabelColor: AppTheme.textPrimary,
+                        unselectedLabelColor:
+                            Theme.of(context).textTheme.bodyMedium?.color,
                         dividerColor: Colors.transparent,
                         isScrollable: false,
                         labelPadding: const EdgeInsets.symmetric(horizontal: 0),

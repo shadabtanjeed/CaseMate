@@ -82,7 +82,7 @@ class _LawyerHomeScreenState extends ConsumerState<LawyerHomeScreen> {
     final lawyerEmail = authState.user?.email ?? '';
 
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -305,8 +305,8 @@ class _LawyerHomeScreenState extends ConsumerState<LawyerHomeScreen> {
     );
   }
 
-  Widget _buildStatCard(
-      IconData icon, String value, String label, String? subtitle, Color color) {
+  Widget _buildStatCard(IconData icon, String value, String label,
+      String? subtitle, Color color) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(

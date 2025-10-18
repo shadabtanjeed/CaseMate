@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'core/theme/app_theme.dart';
+import 'core/theme/theme_provider.dart' as theme;
 import 'features/auth/presentation/screens/splash_screen.dart';
 import 'features/auth/presentation/screens/onboarding_screen.dart';
 import 'features/auth/presentation/screens/login_screen.dart';
@@ -37,15 +38,19 @@ Future<void> main() async {
   runApp(const ProviderScope(child: MyApp()));
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends ConsumerWidget {
   const MyApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isDarkMode = ref.watch(theme.themeNotifierProvider);
+
     return MaterialApp(
       title: 'LegalAssist',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.theme,
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: isDarkMode ? ThemeMode.dark : ThemeMode.light,
       home: const AppNavigator(),
     );
   }
@@ -80,7 +85,8 @@ class _AppNavigatorState extends State<AppNavigator> {
       _selectedSpecialization = spec;
     });
     _navigateTo('lawyers');
-    debugPrint('[AppNavigator] navigateToLawyersWithSpecialization: $_selectedSpecialization');
+    debugPrint(
+        '[AppNavigator] navigateToLawyersWithSpecialization: $_selectedSpecialization');
   }
 
   void _handleLogin([String? role]) {
@@ -168,7 +174,8 @@ class _AppNavigatorState extends State<AppNavigator> {
       case 'home':
         return HomeScreen(
           onNavigateToChatbot: () => _navigateTo('chatbot'),
-          onNavigateToLawyers: (String? spec) => _navigateToLawyersWithSpecialization(spec),
+          onNavigateToLawyers: (String? spec) =>
+              _navigateToLawyersWithSpecialization(spec),
           onNavigateToSessions: () => _navigateTo('sessions'),
           onNavigateToProfile: () => _navigateTo('profile'),
           onNavigateToNotifications: () => _navigateTo('notifications'),
@@ -272,7 +279,8 @@ class _AppNavigatorState extends State<AppNavigator> {
       body = _buildScreen();
     } catch (e, st) {
       // Show a visible error widget instead of a white screen so we can debug
-      final msg = 'Error building screen: $e\n${st.toString().split('\n').take(8).join('\n')}';
+      final msg =
+          'Error building screen: $e\n${st.toString().split('\n').take(8).join('\n')}';
       debugPrint('[AppNavigator] $msg');
       body = Center(
         child: SingleChildScrollView(

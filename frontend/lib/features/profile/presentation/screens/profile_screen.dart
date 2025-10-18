@@ -1,9 +1,10 @@
 import 'dart:io';
-import 'dart:convert';  // ADDED for base64Decode
+import 'dart:convert'; // ADDED for base64Decode
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/theme/theme_provider.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../auth/presentation/screens/personal_details_screen.dart';
 
@@ -124,6 +125,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   const SizedBox(height: 24),
                   _buildNotifications(context),
                   const SizedBox(height: 24),
+                  _buildAppearance(context, ref),
+                  const SizedBox(height: 24),
                   _buildPrivacySecurity(context),
                   const SizedBox(height: 24),
                   _buildSupport(context, widget.onLogout),
@@ -174,8 +177,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Widget _buildProfileCard(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authProvider).user;
     final initials = _initialsFrom(user?.fullName ?? '');
-    final hasProfileImage = user?.profileImageUrl != null && 
-                           user!.profileImageUrl!.isNotEmpty;
+    final hasProfileImage =
+        user?.profileImageUrl != null && user!.profileImageUrl!.isNotEmpty;
 
     return Transform.translate(
       offset: const Offset(0, -60),
@@ -195,7 +198,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       : hasProfileImage
                           ? CircleAvatar(
                               radius: 48,
-                              backgroundImage: _getImageProvider(user.profileImageUrl!),  // CHANGED
+                              backgroundImage: _getImageProvider(
+                                  user.profileImageUrl!), // CHANGED
                               backgroundColor: AppTheme.primaryBlue,
                             )
                           : CircleAvatar(
@@ -232,14 +236,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               const SizedBox(height: 16),
               Text(
                 user?.fullName ?? 'User',
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+                style:
+                    const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
               ),
               Text(
                 user?.email ?? 'user@example.com',
                 style: const TextStyle(color: AppTheme.textSecondary),
               ),
               const SizedBox(height: 16),
-              
+
               // Save Button (only show if image is selected)
               if (_selectedImage != null)
                 SizedBox(
@@ -371,6 +376,42 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
+  Widget _buildAppearance(BuildContext context, WidgetRef ref) {
+    final isDarkMode = ref.watch(themeNotifierProvider);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 8),
+          child: Text(
+            'Appearance',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Card(
+          child: SwitchListTile(
+            secondary: Icon(
+              Icons.dark_mode_outlined,
+              color: Theme.of(context).textTheme.bodyMedium?.color,
+            ),
+            title: const Text('Dark Mode'),
+            subtitle: const Text(
+              'Use dark theme for better visibility',
+              style: TextStyle(fontSize: 12),
+            ),
+            value: isDarkMode,
+            onChanged: (val) {
+              ref.read(themeNotifierProvider.notifier).toggleTheme();
+            },
+            activeThumbColor: AppTheme.primaryBlue,
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildPrivacySecurity(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -476,7 +517,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       onChanged: (val) {
         // TODO: Implement notification preferences
       },
-      activeColor: AppTheme.primaryBlue,
+      activeThumbColor: AppTheme.primaryBlue,
     );
   }
 
