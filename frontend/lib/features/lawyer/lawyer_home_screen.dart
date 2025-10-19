@@ -5,6 +5,57 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
 import '../auth/presentation/providers/auth_provider.dart';
 import '../booking/presentation/providers/appointment_provider.dart';
+import '../../../core/network/api_client.dart';
+
+// Provider to fetch a lawyer's wallet balance
+final lawyerWalletProvider = FutureProvider.family<double?, String>((ref, email) async {
+  if (email.isEmpty) return null;
+  final api = ApiClient();
+  // encode email to avoid characters like '@' breaking the URL
+  final encoded = Uri.encodeComponent(email);
+  try {
+    final resp = await api.get('/wallet/$encoded');
+    // debug log to help diagnose response shape
+    // ignore: avoid_print
+    print('[wallet] GET /wallet/$encoded -> $resp');
+
+    // Robust extractor to handle various response shapes
+    double? extractBalance(dynamic r) {
+      try {
+        if (r == null) return null;
+        if (r is num) return r.toDouble();
+        if (r is String) {
+          final cleaned = r.replaceAll(RegExp(r'[^0-9.\-]'), '');
+          return double.tryParse(cleaned);
+        }
+        if (r is List && r.isNotEmpty) return extractBalance(r.first);
+        if (r is Map) {
+          const keys = [
+            'balance', 'amount', 'wallet_balance', 'total', 'total_balance', 'walletAmount', 'walletAmountInCents', 'balance_in_cents',
+          ];
+          for (final k in keys) {
+            if (r.containsKey(k)) return extractBalance(r[k]);
+          }
+          if (r.containsKey('data')) return extractBalance(r['data']);
+          if (r.containsKey('wallet')) return extractBalance(r['wallet']);
+          for (final v in r.values) {
+            final vbal = extractBalance(v);
+            if (vbal != null) return vbal;
+          }
+        }
+      } catch (_) {}
+      return null;
+    }
+
+    final bal = extractBalance(resp);
+    if (bal != null && bal > 10000) return bal / 100.0;
+    return bal;
+  } catch (e) {
+    // ignore: avoid_print
+    print('[wallet] error fetching /wallet/$encoded : $e');
+    rethrow;
+  }
+});
 
 class LawyerHomeScreen extends ConsumerStatefulWidget {
   final VoidCallback onNavigateToClients;
@@ -121,6 +172,11 @@ class _LawyerHomeScreenState extends ConsumerState<LawyerHomeScreen> {
   }
 
   Widget _buildHeader(BuildContext context) {
+    // Read auth and wallet
+    final authState = ref.watch(authProvider);
+    final lawyerEmail = authState.user?.email ?? '';
+    final walletAsync = lawyerEmail.isNotEmpty ? ref.watch(lawyerWalletProvider(lawyerEmail)) : null;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: const BoxDecoration(
@@ -194,6 +250,93 @@ class _LawyerHomeScreenState extends ConsumerState<LawyerHomeScreen> {
                         ),
                       );
                     }),
+                    // Wallet balance row
+                    if (lawyerEmail.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Builder(builder: (context) {
+                        if (walletAsync == null) return const SizedBox.shrink();
+                        return walletAsync.when(
+                          data: (bal) {
+                            final display = bal != null ? '৳${bal.toStringAsFixed(2)}' : '—';
+                            return Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.12),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.account_balance_wallet, color: Colors.white, size: 16),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        'Wallet: $display',
+                                        style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                // Refresh button to force refetch
+                                IconButton(
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                  onPressed: () {
+                                    if (lawyerEmail.isNotEmpty) {
+                                      ref.refresh(lawyerWalletProvider(lawyerEmail));
+                                    }
+                                  },
+                                  icon: const Icon(Icons.refresh, size: 18, color: Colors.white70),
+                                  tooltip: 'Refresh wallet',
+                                ),
+                              ],
+                            );
+                          },
+                          loading: () => Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.08),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  children: const [
+                                    SizedBox(
+                                      width: 14,
+                                      height: 14,
+                                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                    ),
+                                    SizedBox(width: 8),
+                                    Text('Fetching wallet', style: TextStyle(color: Colors.white70, fontSize: 13)),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              IconButton(
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                                onPressed: () {
+                                  if (lawyerEmail.isNotEmpty) {
+                                    ref.refresh(lawyerWalletProvider(lawyerEmail));
+                                  }
+                                },
+                                icon: const Icon(Icons.refresh, size: 18, color: Colors.white70),
+                                tooltip: 'Refresh wallet',
+                              ),
+                            ],
+                          ),
+                          error: (e, st) => Row(
+                            children: const [
+                              Icon(Icons.error_outline, size: 16, color: Colors.white70),
+                              SizedBox(width: 6),
+                              Text('Wallet unavailable', style: TextStyle(color: Colors.white70, fontSize: 13)),
+                            ],
+                          ),
+                        );
+                      }),
+                    ],
                   ],
                 ),
               ),
@@ -237,6 +380,11 @@ class _LawyerHomeScreenState extends ConsumerState<LawyerHomeScreen> {
   }
 
   Widget _buildQuickStats() {
+    // Use ref (available in ConsumerState) to read auth and wallet
+    final authState = ref.watch(authProvider);
+    final lawyerEmail = authState.user?.email ?? '';
+    final walletAsync = lawyerEmail.isNotEmpty ? ref.watch(lawyerWalletProvider(lawyerEmail)) : AsyncValue.data(null);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -280,13 +428,58 @@ class _LawyerHomeScreenState extends ConsumerState<LawyerHomeScreen> {
         const SizedBox(height: 12),
         Row(
           children: [
+            // Replace the hard-coded earnings card with a wallet-backed dynamic card
             Expanded(
-              child: _buildStatCard(
-                Icons.attach_money,
-                '\$850',
-                'Today\'s Earnings',
-                '+15% vs avg',
-                Colors.green,
+              child: walletAsync.when(
+                data: (bal) {
+                  final display = bal != null ? '৳${bal.toStringAsFixed(2)}' : '৳0.00';
+                  return _buildStatCard(
+                    Icons.attach_money,
+                    display,
+                    'Today\'s Earnings',
+                    '+15% vs avg',
+                    Colors.green,
+                  );
+                },
+                loading: () {
+                  return Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).cardColor,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Theme.of(context).dividerColor),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(Icons.attach_money, color: Colors.green, size: 20),
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: 80,
+                          height: 22,
+                          child: LinearProgressIndicator(minHeight: 6),
+                        ),
+                        const SizedBox(height: 8),
+                        Text('Today\'s Earnings', style: Theme.of(context).textTheme.bodySmall),
+                        Text('+15% vs avg', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.green)),
+                      ],
+                    ),
+                  );
+                },
+                error: (e, st) => _buildStatCard(
+                  Icons.attach_money,
+                  '৳—',
+                  'Today\'s Earnings',
+                  'Unavailable',
+                  Colors.green,
+                ),
               ),
             ),
             const SizedBox(width: 12),
