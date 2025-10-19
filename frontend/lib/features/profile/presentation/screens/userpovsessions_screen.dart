@@ -240,20 +240,37 @@ class _UserPovSessionsScreenState extends ConsumerState<UserPovSessionsScreen>
         return isFinished || date < now;
       }).toList();
 
-  String _formatDate(DateTime dt) {
+  // Removed _formatDate (previously included time in the header). Use
+  // _formatDateOnly and _formatSessionTimeRange instead.
+
+  // Format only the date portion (no time) for display in the card header
+  String _formatDateOnly(DateTime dt) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final appointmentDay = DateTime(dt.year, dt.month, dt.day);
 
     if (appointmentDay == today) {
-      return 'Today, ${_formatTime(dt)}';
+      return 'Today';
     } else if (appointmentDay == today.add(const Duration(days: 1))) {
-      return 'Tomorrow, ${_formatTime(dt)}';
+      return 'Tomorrow';
     } else if (appointmentDay.isAfter(today) &&
         appointmentDay.isBefore(today.add(const Duration(days: 7)))) {
       final weekday =
           ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][dt.weekday - 1];
-      return '$weekday, ${_formatTime(dt)}';
+      return '$weekday ${dt.day} ${[
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec'
+      ][dt.month - 1]}';
     } else {
       final month = [
         'Jan',
@@ -269,16 +286,44 @@ class _UserPovSessionsScreenState extends ConsumerState<UserPovSessionsScreen>
         'Nov',
         'Dec'
       ][dt.month - 1];
-      return '${dt.day} $month ${dt.year}, ${_formatTime(dt)}';
+      return '${dt.day} $month ${dt.year}';
     }
   }
 
-  String _formatTime(DateTime dt) {
-    final hour = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
-    final minute = dt.minute.toString().padLeft(2, '0');
-    final period = dt.hour >= 12 ? 'PM' : 'AM';
-    return '$hour:$minute $period';
+  // Format start_time and end_time strings (like "13:30") into a readable range
+  String _formatSessionTimeRange(dynamic start, dynamic end) {
+    String fmtStart = _formatTimeFromString(start);
+    String fmtEnd = _formatTimeFromString(end);
+
+    if ((fmtStart.isEmpty || fmtStart == 'TBD') &&
+        (fmtEnd.isEmpty || fmtEnd == 'TBD')) {
+      return 'Time: TBD';
+    }
+    if (fmtStart.isEmpty || fmtStart == 'TBD') return 'Time: $fmtEnd';
+    if (fmtEnd.isEmpty || fmtEnd == 'TBD') return 'Time: $fmtStart';
+    return 'Time: $fmtStart - $fmtEnd';
   }
+
+  String _formatTimeFromString(dynamic timeStr) {
+    if (timeStr == null) return 'TBD';
+    final s = timeStr.toString().trim();
+    if (s.isEmpty) return 'TBD';
+    try {
+      // expect formats like HH:mm or H:mm
+      final parts = s.split(':');
+      if (parts.length < 2) return s;
+      final hour = int.tryParse(parts[0]) ?? 0;
+      final minute = int.tryParse(parts[1]) ?? 0;
+      final isAM = hour < 12;
+      final displayHour = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+      return '${displayHour}:${minute.toString().padLeft(2, '0')} ${isAM ? 'AM' : 'PM'}';
+    } catch (e) {
+      return s;
+    }
+  }
+
+  // _formatTime was removed in favor of _formatTimeFromString which formats
+  // start/end time strings stored in the appointment objects.
 
   Widget _buildCard(Map<String, dynamic> a, bool upcoming) {
     final dateMs = _parseDateMs(a['date']);
@@ -294,14 +339,10 @@ class _UserPovSessionsScreenState extends ConsumerState<UserPovSessionsScreen>
       ),
       child: Container(
         decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(16),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Colors.white,
-              Colors.grey.shade50,
-            ],
+          border: Border.all(
+            color: Theme.of(context).dividerColor,
           ),
         ),
         child: Padding(
@@ -332,10 +373,10 @@ class _UserPovSessionsScreenState extends ConsumerState<UserPovSessionsScreen>
                               size: 14,
                               color: Colors.grey.shade600,
                             ),
-                            const SizedBox(width: 4),
+                            const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                dateMs == 0 ? 'TBD' : _formatDate(dt),
+                                dateMs == 0 ? 'TBD' : _formatDateOnly(dt),
                                 style: TextStyle(
                                   color: Colors.grey.shade600,
                                   fontSize: 13,
@@ -387,12 +428,46 @@ class _UserPovSessionsScreenState extends ConsumerState<UserPovSessionsScreen>
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? const Color(0xFF2C2C2C)
+                      : Colors.grey.shade50,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey.shade200),
+                  border: Border.all(
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? const Color(0xFF404040)
+                        : Colors.grey.shade200,
+                  ),
                 ),
                 child: Column(
                   children: [
+                    // Show session time range (from start_time and end_time fields)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8.0),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.access_time,
+                            size: 16,
+                            color:
+                                Theme.of(context).textTheme.bodyMedium?.color,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _formatSessionTimeRange(
+                                  a['start_time'], a['end_time']),
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Theme.of(context)
+                                    .textTheme
+                                    .bodyLarge
+                                    ?.color,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                     if ((a['lawyer_name'] ?? '').toString().isNotEmpty) ...[
                       _buildInfoRow(Icons.person_outline, 'Lawyer',
                           a['lawyer_name'] ?? ''),
@@ -417,23 +492,32 @@ class _UserPovSessionsScreenState extends ConsumerState<UserPovSessionsScreen>
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.blue.shade50.withOpacity(0.3),
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? const Color(0xFF2C2C2C)
+                        : Colors.blue.shade50.withOpacity(0.3),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                        color: Colors.blue.shade100.withOpacity(0.5)),
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? const Color(0xFF404040)
+                          : Colors.blue.shade100.withOpacity(0.5),
+                    ),
                   ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.description_outlined,
-                          size: 16, color: Colors.grey.shade600),
+                      Icon(
+                        Icons.description_outlined,
+                        size: 16,
+                        color: Theme.of(context).textTheme.bodyMedium?.color,
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           a['description'] ?? '',
                           style: TextStyle(
                             fontSize: 13,
-                            color: Colors.grey.shade700,
+                            color:
+                                Theme.of(context).textTheme.bodyMedium?.color,
                             height: 1.4,
                           ),
                           maxLines: 3,
@@ -490,14 +574,18 @@ class _UserPovSessionsScreenState extends ConsumerState<UserPovSessionsScreen>
   Widget _buildInfoRow(IconData icon, String label, String value) {
     return Row(
       children: [
-        Icon(icon, size: 16, color: Colors.grey.shade600),
+        Icon(
+          icon,
+          size: 16,
+          color: Theme.of(context).textTheme.bodyMedium?.color,
+        ),
         const SizedBox(width: 8),
         Text(
           '$label: ',
           style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w600,
-            color: Colors.grey.shade700,
+            color: Theme.of(context).textTheme.bodyMedium?.color,
           ),
         ),
         Expanded(
@@ -505,7 +593,7 @@ class _UserPovSessionsScreenState extends ConsumerState<UserPovSessionsScreen>
             value,
             style: TextStyle(
               fontSize: 13,
-              color: Colors.grey.shade800,
+              color: Theme.of(context).textTheme.bodyLarge?.color,
             ),
             overflow: TextOverflow.ellipsis,
           ),
@@ -561,7 +649,7 @@ class _UserPovSessionsScreenState extends ConsumerState<UserPovSessionsScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -585,9 +673,9 @@ class _UserPovSessionsScreenState extends ConsumerState<UserPovSessionsScreen>
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Theme.of(context).cardColor,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppTheme.borderColor),
+                border: Border.all(color: Theme.of(context).dividerColor),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withOpacity(0.04),

@@ -141,7 +141,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
     });
 
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
@@ -167,18 +167,42 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: AppTheme.borderColor),
                   ),
-                  child: TabBar(
-                    controller: _tabController,
-                    indicator: BoxDecoration(
-                      color: AppTheme.primaryBlue,
-                      borderRadius: BorderRadius.circular(12),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).cardColor,
+                        border: Border(
+                          top:
+                              BorderSide(color: Theme.of(context).dividerColor),
+                          left:
+                              BorderSide(color: Theme.of(context).dividerColor),
+                          right:
+                              BorderSide(color: Theme.of(context).dividerColor),
+                          bottom: BorderSide(color: Colors.transparent),
+                        ),
+                      ),
+                      child: TabBar(
+                        controller: _tabController,
+                        indicator: BoxDecoration(
+                          color: AppTheme.primaryBlue,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        indicatorSize: TabBarIndicatorSize.tab,
+                        indicatorPadding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 4),
+                        labelColor: Colors.white,
+                        unselectedLabelColor:
+                            Theme.of(context).textTheme.bodyMedium?.color,
+                        dividerColor: Colors.transparent,
+                        isScrollable: false,
+                        labelPadding: const EdgeInsets.symmetric(horizontal: 0),
+                        tabs: const [
+                          Tab(text: 'User'),
+                          Tab(text: 'Lawyer'),
+                        ],
+                      ),
                     ),
-                    labelColor: Colors.white,
-                    unselectedLabelColor: AppTheme.textPrimary,
-                    tabs: const [
-                      Tab(text: 'User'),
-                      Tab(text: 'Lawyer'),
-                    ],
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -452,7 +476,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
               decoration: const InputDecoration(
                 labelText: 'Consultation Fee (per hour)',
                 prefixIcon: Icon(Icons.attach_money),
-                hintText: 'e.g. 50.00',
+                hintText: 'e.g. 500.00',
               ),
               validator: (value) {
                 if (value == null || value.isEmpty) {

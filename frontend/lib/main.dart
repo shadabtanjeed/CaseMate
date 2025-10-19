@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'core/theme/app_theme.dart';
+import 'core/theme/theme_provider.dart' as theme;
 import 'features/auth/presentation/screens/splash_screen.dart';
 import 'features/auth/presentation/screens/onboarding_screen.dart';
 import 'features/auth/presentation/screens/login_screen.dart';
@@ -37,15 +38,19 @@ Future<void> main() async {
   runApp(const ProviderScope(child: MyApp()));
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends ConsumerWidget {
   const MyApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isDarkMode = ref.watch(theme.themeNotifierProvider);
+
     return MaterialApp(
       title: 'LegalAssist',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.theme,
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: isDarkMode ? ThemeMode.dark : ThemeMode.light,
       home: const AppNavigator(),
     );
   }
@@ -63,9 +68,12 @@ class _AppNavigatorState extends State<AppNavigator> {
   String _selectedLawyerId = '';
   bool _openAvailabilityTab = false;
   String? _selectedSpecialization;
+  String? _previousScreen;
+  String? _currentUserRole;
 
   void _navigateTo(String screen) {
     setState(() {
+      _previousScreen = _currentScreen;
       _currentScreen = screen;
     });
     // debug trace so we can see navigation activity in logs
@@ -75,35 +83,34 @@ class _AppNavigatorState extends State<AppNavigator> {
   void _navigateToLawyersWithSpecialization(String? spec) {
     setState(() {
       _selectedSpecialization = spec;
-      _currentScreen = 'lawyers';
     });
-    debugPrint('[AppNavigator] navigateToLawyersWithSpecialization: $_selectedSpecialization');
+    _navigateTo('lawyers');
+    debugPrint(
+        '[AppNavigator] navigateToLawyersWithSpecialization: $_selectedSpecialization');
   }
 
   void _handleLogin([String? role]) {
-    setState(() {
-      if (role == 'lawyer') {
-        _currentScreen = 'lawyer-home';
-      } else {
-        _currentScreen = 'home';
-      }
-    });
+    // remember the logged in user's role so we can route correctly later
+    _currentUserRole = role;
+    if (role == 'lawyer') {
+      _navigateTo('lawyer-home');
+    } else {
+      _navigateTo('home');
+    }
     _showSnackbar('Welcome back!');
     debugPrint('[AppNavigator] handleLogin -> $_currentScreen (role=$role)');
   }
 
   void _handleRegister() {
-    setState(() {
-      _currentScreen = 'login';
-    });
+    _navigateTo('login');
     _showSnackbar('Account created successfully! Please login.');
     debugPrint('[AppNavigator] handleRegister -> login');
   }
 
   void _handleLogout() {
-    setState(() {
-      _currentScreen = 'login';
-    });
+    // clear remembered role on logout
+    _currentUserRole = null;
+    _navigateTo('login');
     _showSnackbar('Logged out successfully');
     debugPrint('[AppNavigator] handleLogout -> login');
   }
@@ -111,26 +118,24 @@ class _AppNavigatorState extends State<AppNavigator> {
   void _handleSelectLawyer(String lawyerId) {
     setState(() {
       _selectedLawyerId = lawyerId;
-      _currentScreen = 'lawyer-detail';
       _openAvailabilityTab = false;
     });
+    _navigateTo('lawyer-detail');
     debugPrint('[AppNavigator] handleSelectLawyer -> $_selectedLawyerId');
   }
 
   void _handleBookNowLawyer(String lawyerId) {
     setState(() {
       _selectedLawyerId = lawyerId;
-      _currentScreen = 'lawyer-detail';
       _openAvailabilityTab = true;
     });
+    _navigateTo('lawyer-detail');
     _showSnackbar('Booking confirmed successfully!');
-    debugPrint('[AppNavigator] handleBookingConfirm -> home');
+    debugPrint('[AppNavigator] handleBookingConfirm -> lawyer-detail');
   }
 
   void _handleEndCall() {
-    setState(() {
-      _currentScreen = 'home';
-    });
+    _navigateTo('home');
     _showSnackbar('Call ended');
     debugPrint('[AppNavigator] handleEndCall -> home');
   }
@@ -169,7 +174,8 @@ class _AppNavigatorState extends State<AppNavigator> {
       case 'home':
         return HomeScreen(
           onNavigateToChatbot: () => _navigateTo('chatbot'),
-          onNavigateToLawyers: (String? spec) => _navigateToLawyersWithSpecialization(spec),
+          onNavigateToLawyers: (String? spec) =>
+              _navigateToLawyersWithSpecialization(spec),
           onNavigateToSessions: () => _navigateTo('sessions'),
           onNavigateToProfile: () => _navigateTo('profile'),
           onNavigateToNotifications: () => _navigateTo('notifications'),
@@ -205,7 +211,14 @@ class _AppNavigatorState extends State<AppNavigator> {
 
       case 'profile':
         return ProfileScreen(
-          onBack: () => _navigateTo('home'),
+          onBack: () {
+            // If the current user is a lawyer, ensure back goes to the lawyer home
+            if (_currentUserRole == 'lawyer') {
+              _navigateTo('lawyer-home');
+            } else {
+              _navigateTo(_previousScreen ?? 'home');
+            }
+          },
           onLogout: _handleLogout,
         );
 
@@ -266,7 +279,8 @@ class _AppNavigatorState extends State<AppNavigator> {
       body = _buildScreen();
     } catch (e, st) {
       // Show a visible error widget instead of a white screen so we can debug
-      final msg = 'Error building screen: $e\n${st.toString().split('\n').take(8).join('\n')}';
+      final msg =
+          'Error building screen: $e\n${st.toString().split('\n').take(8).join('\n')}';
       debugPrint('[AppNavigator] $msg');
       body = Center(
         child: SingleChildScrollView(
