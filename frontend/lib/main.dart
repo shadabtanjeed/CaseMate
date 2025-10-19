@@ -29,17 +29,23 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: ".env");
+  // Global toggle to show the universal gear/navigation FAB across all pages.
+  // Set SHOW_UNIVERSAL_GEAR=true in frontend/.env to enable it. Defaults to false.
+  final showUniversalGear =
+      false; //dotenv.env['SHOW_UNIVERSAL_GEAR']?.toLowerCase() == 'true';
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.dark,
     ),
   );
-  runApp(const ProviderScope(child: MyApp()));
+  runApp(ProviderScope(child: MyApp(showUniversalGear: showUniversalGear)));
 }
 
 class MyApp extends ConsumerWidget {
-  const MyApp({super.key});
+  final bool showUniversalGear;
+
+  const MyApp({super.key, required this.showUniversalGear});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -51,13 +57,15 @@ class MyApp extends ConsumerWidget {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: isDarkMode ? ThemeMode.dark : ThemeMode.light,
-      home: const AppNavigator(),
+      home: AppNavigator(showUniversalGear: showUniversalGear),
     );
   }
 }
 
 class AppNavigator extends StatefulWidget {
-  const AppNavigator({super.key});
+  final bool showUniversalGear;
+
+  const AppNavigator({super.key, required this.showUniversalGear});
 
   @override
   State<AppNavigator> createState() => _AppNavigatorState();
@@ -295,11 +303,14 @@ class _AppNavigatorState extends State<AppNavigator> {
 
     return Scaffold(
       body: body,
-      floatingActionButton: FloatingActionButton.small(
-        onPressed: () => _showScreenSelector(context),
-        backgroundColor: AppTheme.primaryBlue,
-        child: const Icon(Icons.settings, color: Colors.white),
-      ),
+      // Show the universal gear FAB only when enabled via the SHOW_UNIVERSAL_GEAR env var
+      floatingActionButton: widget.showUniversalGear
+          ? FloatingActionButton.small(
+              onPressed: () => _showScreenSelector(context),
+              backgroundColor: AppTheme.primaryBlue,
+              child: const Icon(Icons.settings, color: Colors.white),
+            )
+          : null,
       floatingActionButtonLocation: _MidLeftFabLocation(),
     );
   }
