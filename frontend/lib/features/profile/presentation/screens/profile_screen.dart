@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'dart:convert'; 
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -91,12 +91,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       if (mounted) {
         // Wait longer to ensure the new image URL is in the provider
         await Future.delayed(const Duration(milliseconds: 300));
-        
+
         setState(() {
           _isUploading = false;
           // Keep _selectedImage - DON'T clear it yet
         });
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Profile image updated successfully!'),
@@ -126,7 +126,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final user = authState.user;
 
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Column(
         children: [
           _buildHeader(context),
@@ -158,10 +158,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   Widget _buildHeader(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 48, 16, 24), // FIXED: Reduced bottom padding from 80 to 24
-      decoration: const BoxDecoration(
+      padding: const EdgeInsets.fromLTRB(
+          16, 48, 16, 24), // FIXED: Reduced bottom padding from 80 to 24
+      decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [AppTheme.primaryBlue, AppTheme.accentBlue],
+          colors: [
+            Theme.of(context).primaryColor,
+            Theme.of(context).colorScheme.secondary
+          ],
         ),
         borderRadius: BorderRadius.only(
           bottomLeft: Radius.circular(24),
@@ -217,31 +221,24 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           radius: 60,
                           backgroundImage: FileImage(_selectedImage!),
                         )
-                      : hasProfileImage
+                      : (hasProfileImage
                           ? CircleAvatar(
                               key: ValueKey(user.profileImageUrl), // Simple key
                               radius: 60,
-                              backgroundImage: _getImageProvider(user.profileImageUrl!),
+                              backgroundImage:
+                                  _getImageProvider(user.profileImageUrl!),
                             )
                           : CircleAvatar(
                               radius: 60,
-                              backgroundColor: AppTheme.primaryBlue,
-                              child: Text(
-                              backgroundColor: AppTheme.primaryBlue,
-                              onBackgroundImageError: (exception, stackTrace) {
-                                // If image fails to load, show initials
-                                debugPrint('Error loading profile image: $exception');
-                              },
-                            )
-                          : CircleAvatar(
-                              radius: 60,
-                              backgroundColor: AppTheme.primaryBlue,
+                              backgroundColor: Theme.of(context).primaryColor,
                               child: Text(
                                 initials.isEmpty ? 'U' : initials,
                                 style: const TextStyle(
-                                    color: Colors.white, fontSize: 36),
+                                  color: Colors.white,
+                                  fontSize: 36,
+                                ),
                               ),
-                            ),
+                            )),
                   // Edit Button
                   Positioned(
                     right: 0,
@@ -251,12 +248,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       child: Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: _isUploading ? Colors.grey : AppTheme.primaryBlue,
+                          color: _isUploading
+                              ? Theme.of(context).disabledColor
+                              : Theme.of(context).primaryColor,
                           shape: BoxShape.circle,
                           border: Border.all(color: Colors.white, width: 2),
                         ),
                         child: Icon(
-                          _isUploading ? Icons.hourglass_empty : Icons.camera_alt,
+                          _isUploading
+                              ? Icons.hourglass_empty
+                              : Icons.camera_alt,
                           color: Colors.white,
                           size: 20,
                         ),
@@ -269,23 +270,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             const SizedBox(height: 16),
             Text(
               user?.fullName ?? 'User',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
-                color: AppTheme.textPrimary,
+                color: Theme.of(context).textTheme.titleLarge?.color,
               ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 4),
             Text(
               user?.email ?? 'user@example.com',
-              style: const TextStyle(
-                color: AppTheme.textSecondary,
+              style: TextStyle(
+                color: Theme.of(context).textTheme.bodyMedium?.color,
                 fontSize: 14,
               ),
               textAlign: TextAlign.center,
             ),
-            
+
             // Save Button (only show if image is selected and not uploading)
             if (_selectedImage != null) ...[
               const SizedBox(height: 20),
@@ -294,8 +295,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 child: ElevatedButton(
                   onPressed: _isUploading ? null : _saveProfileImage,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryBlue,
-                    disabledBackgroundColor: Colors.grey,
+                    backgroundColor: Theme.of(context).primaryColor,
+                    disabledBackgroundColor: Theme.of(context).disabledColor,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -346,14 +347,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 8),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
           child: Text(
             'Account Information',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,
-              color: AppTheme.textPrimary,
+              color: Theme.of(context).textTheme.headlineMedium?.color,
             ),
           ),
         ),
@@ -407,14 +408,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 8),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
           child: Text(
             'Notifications',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,
-              color: AppTheme.textPrimary,
+              color: Theme.of(context).textTheme.headlineMedium?.color,
             ),
           ),
         ),
@@ -448,11 +449,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 8),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
           child: Text(
             'Appearance',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Theme.of(context).textTheme.headlineMedium?.color),
           ),
         ),
         const SizedBox(height: 12),
@@ -482,14 +486,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 8),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
           child: Text(
             'Privacy & Security',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,
-              color: AppTheme.textPrimary,
+              color: Theme.of(context).textTheme.headlineMedium?.color,
             ),
           ),
         ),
@@ -521,14 +525,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 8),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
           child: Text(
             'Support',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,
-              color: AppTheme.textPrimary,
+              color: Theme.of(context).textTheme.headlineMedium?.color,
             ),
           ),
         ),
@@ -547,7 +551,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 leading: const Icon(Icons.logout, color: Colors.red),
                 title: const Text(
                   'Logout',
-                  style: TextStyle(color: Colors.red, fontWeight: FontWeight.w500),
+                  style:
+                      TextStyle(color: Colors.red, fontWeight: FontWeight.w500),
                 ),
                 trailing: const Icon(Icons.chevron_right, color: Colors.red),
                 onTap: onLogout,
@@ -568,24 +573,25 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     VoidCallback? onTap,
   }) {
     return ListTile(
-      leading: Icon(icon, color: AppTheme.primaryBlue),
+      leading: Icon(icon, color: Theme.of(context).primaryColor),
       title: Text(
         title,
-        style: const TextStyle(
+        style: TextStyle(
           fontWeight: FontWeight.w500,
-          color: AppTheme.textPrimary,
+          color: Theme.of(context).textTheme.titleLarge?.color,
         ),
       ),
       subtitle: subtitle != null
           ? Text(
               subtitle,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
-                color: AppTheme.textSecondary,
+                color: Theme.of(context).textTheme.bodyMedium?.color,
               ),
             )
           : null,
-      trailing: const Icon(Icons.chevron_right, color: AppTheme.textSecondary),
+      trailing: Icon(Icons.chevron_right,
+          color: Theme.of(context).textTheme.bodyMedium?.color),
       onTap: onTap ?? () {},
     );
   }
@@ -597,26 +603,26 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     bool value,
   ) {
     return SwitchListTile(
-      secondary: Icon(icon, color: AppTheme.primaryBlue),
+      secondary: Icon(icon, color: Theme.of(context).primaryColor),
       title: Text(
         title,
-        style: const TextStyle(
+        style: TextStyle(
           fontWeight: FontWeight.w500,
-          color: AppTheme.textPrimary,
+          color: Theme.of(context).textTheme.titleLarge?.color,
         ),
       ),
       subtitle: Text(
         subtitle,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 13,
-          color: AppTheme.textSecondary,
+          color: Theme.of(context).textTheme.bodyMedium?.color,
         ),
       ),
       value: value,
       onChanged: (val) {
         // TODO: Implement notification preferences
       },
-      activeThumbColor: AppTheme.primaryBlue,
+      activeThumbColor: Theme.of(context).primaryColor,
     );
   }
 
