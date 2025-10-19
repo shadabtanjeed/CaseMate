@@ -1106,7 +1106,8 @@ class _LawyerHomeScreenState extends ConsumerState<LawyerHomeScreen> {
               _buildNavItem(Icons.home, 'Home', 0),
               _buildNavItem(Icons.calendar_today, 'Schedule', 1),
               _buildNavItem(Icons.people, 'Clients', 2),
-              _buildNavItem(Icons.person_outline, 'Profile', 3),
+              _buildNavItem(Icons.folder_open, 'Cases', 3),
+              _buildNavItem(Icons.person_outline, 'Profile', 4),
             ],
           ),
         ),
@@ -1123,7 +1124,8 @@ class _LawyerHomeScreenState extends ConsumerState<LawyerHomeScreen> {
         });
         if (index == 1) widget.onNavigateToSchedule();
         if (index == 2) widget.onNavigateToClients();
-        if (index == 3) widget.onNavigateToProfile();
+        if (index == 3) widget.onNavigateToCases();
+        if (index == 4) widget.onNavigateToProfile();
       },
       child: Column(
         mainAxisSize: MainAxisSize.min,

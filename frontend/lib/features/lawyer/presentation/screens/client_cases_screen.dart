@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../../../core/theme/app_theme.dart';
 import 'package:legal_assist/features/lawyer/data/models/client_model.dart';
 import 'package:legal_assist/features/lawyer/data/lawyer_client_service.dart';
 import 'package:legal_assist/features/lawyer/data/models/case_model.dart';
@@ -59,10 +58,10 @@ class _ClientCasesScreenState extends State<ClientCasesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text('${widget.client.fullName}\'s Cases'),
-        backgroundColor: AppTheme.primaryBlue,
+        backgroundColor: Theme.of(context).primaryColor,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -77,13 +76,14 @@ class _ClientCasesScreenState extends State<ClientCasesScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.folder_open, size: 64, color: AppTheme.textSecondary),
+          Icon(Icons.folder_open,
+              size: 64, color: Theme.of(context).textTheme.bodyMedium?.color),
           const SizedBox(height: 16),
           Text(
             'No cases found for this client',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 16,
-              color: AppTheme.textSecondary,
+              color: Theme.of(context).textTheme.bodyMedium?.color,
             ),
           ),
         ],
@@ -109,7 +109,7 @@ class _ClientCasesScreenState extends State<ClientCasesScreen> {
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: caseModel.statusColor.withOpacity(0.3),
@@ -124,15 +124,16 @@ class _ClientCasesScreenState extends State<ClientCasesScreen> {
               Expanded(
                 child: Text(
                   caseModel.caseTitle,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: AppTheme.textPrimary,
+                    color: Theme.of(context).textTheme.titleLarge?.color,
                   ),
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: caseModel.statusColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
@@ -151,13 +152,15 @@ class _ClientCasesScreenState extends State<ClientCasesScreen> {
           const SizedBox(height: 8),
           Row(
             children: [
-              Icon(Icons.category, size: 14, color: AppTheme.textSecondary),
+              Icon(Icons.category,
+                  size: 14,
+                  color: Theme.of(context).textTheme.bodyMedium?.color),
               const SizedBox(width: 4),
               Text(
                 caseModel.caseType,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13,
-                  color: AppTheme.textSecondary,
+                  color: Theme.of(context).textTheme.bodyMedium?.color,
                 ),
               ),
             ],

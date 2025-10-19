@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../../../core/theme/app_theme.dart';
+// Theme is used via Theme.of(context)
 import 'package:legal_assist/features/lawyer/data/models/case_model.dart';
+
 class UpdateCaseStatusSheet extends StatefulWidget {
   final CaseModel caseModel;
   final Function(String) onUpdate;
@@ -34,9 +35,9 @@ class _UpdateCaseStatusSheetState extends State<UpdateCaseStatusSheet> {
         top: 24,
         bottom: MediaQuery.of(context).viewInsets.bottom + 24,
       ),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -64,13 +65,14 @@ class _UpdateCaseStatusSheetState extends State<UpdateCaseStatusSheet> {
           const SizedBox(height: 8),
           Text(
             widget.caseModel.caseTitle,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
-              color: AppTheme.textSecondary,
+              color: Theme.of(context).textTheme.bodyMedium?.color,
             ),
           ),
           const SizedBox(height: 24),
           _buildStatusOption(
+            context,
             'pending',
             'Pending',
             Icons.hourglass_empty,
@@ -78,13 +80,15 @@ class _UpdateCaseStatusSheetState extends State<UpdateCaseStatusSheet> {
             'Case is awaiting review or action',
           ),
           _buildStatusOption(
+            context,
             'ongoing',
             'Ongoing',
             Icons.refresh,
-            AppTheme.accentBlue,
+            Theme.of(context).colorScheme.secondary,
             'Actively working on the case',
           ),
           _buildStatusOption(
+            context,
             'closed',
             'Closed',
             Icons.check_circle,
@@ -122,6 +126,7 @@ class _UpdateCaseStatusSheetState extends State<UpdateCaseStatusSheet> {
   }
 
   Widget _buildStatusOption(
+    BuildContext context,
     String value,
     String label,
     IconData icon,
@@ -136,7 +141,9 @@ class _UpdateCaseStatusSheetState extends State<UpdateCaseStatusSheet> {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isSelected ? color.withOpacity(0.1) : Colors.grey[100],
+          color: isSelected
+              ? color.withOpacity(0.08)
+              : Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isSelected ? color : Colors.transparent,
@@ -162,23 +169,23 @@ class _UpdateCaseStatusSheetState extends State<UpdateCaseStatusSheet> {
                     label,
                     style: TextStyle(
                       fontSize: 16,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                      color: AppTheme.textPrimary,
+                      fontWeight:
+                          isSelected ? FontWeight.w600 : FontWeight.normal,
+                      color: Theme.of(context).textTheme.bodyLarge?.color,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     description,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
-                      color: AppTheme.textSecondary,
+                      color: Theme.of(context).textTheme.bodyMedium?.color,
                     ),
                   ),
                 ],
               ),
             ),
-            if (isSelected)
-              Icon(Icons.check_circle, color: color, size: 24),
+            if (isSelected) Icon(Icons.check_circle, color: color, size: 24),
           ],
         ),
       ),

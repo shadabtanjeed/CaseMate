@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../../core/theme/app_theme.dart';
+// theme handled via Theme.of(context)
 import 'package:legal_assist/features/lawyer/data/models/case_model.dart';
 
 class CaseDetailsScreen extends StatelessWidget {
@@ -10,45 +10,52 @@ class CaseDetailsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('Case Details'),
-        backgroundColor: AppTheme.primaryBlue,
+        backgroundColor: Theme.of(context).primaryColor,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildInfoCard('Case Title', caseModel.caseTitle, Icons.gavel),
-            const SizedBox(height: 16),
-            _buildInfoCard('Case Type', caseModel.caseType, Icons.category),
+            _buildInfoCard(
+                context, 'Case Title', caseModel.caseTitle, Icons.gavel),
             const SizedBox(height: 16),
             _buildInfoCard(
+                context, 'Case Type', caseModel.caseType, Icons.category),
+            const SizedBox(height: 16),
+            _buildInfoCard(
+              context,
               'Description',
               caseModel.description,
               Icons.description,
               maxLines: null,
             ),
             const SizedBox(height: 16),
-            _buildInfoCard('Client Email', caseModel.userEmail, Icons.email),
+            _buildInfoCard(
+                context, 'Client Email', caseModel.userEmail, Icons.email),
             const SizedBox(height: 16),
             _buildInfoCard(
+              context,
               'Status',
               caseModel.status.toUpperCase(),
               Icons.flag,
               valueColor: caseModel.statusColor,
             ),
             const SizedBox(height: 16),
-            _buildInfoCard('Case ID', caseModel.caseId, Icons.badge),
+            _buildInfoCard(context, 'Case ID', caseModel.caseId, Icons.badge),
             const SizedBox(height: 16),
             _buildInfoCard(
+              context,
               'Created',
               _formatDate(caseModel.creationDate),
               Icons.calendar_today,
             ),
             const SizedBox(height: 16),
             _buildInfoCard(
+              context,
               'Last Updated',
               _formatDate(caseModel.lastUpdated),
               Icons.update,
@@ -60,6 +67,7 @@ class CaseDetailsScreen extends StatelessWidget {
   }
 
   Widget _buildInfoCard(
+    BuildContext context,
     String label,
     String value,
     IconData icon, {
@@ -69,14 +77,14 @@ class CaseDetailsScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.borderColor),
+        border: Border.all(color: Theme.of(context).dividerColor),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: AppTheme.primaryBlue, size: 24),
+          Icon(icon, color: Theme.of(context).primaryColor, size: 24),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -84,9 +92,9 @@ class CaseDetailsScreen extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
-                    color: AppTheme.textSecondary,
+                    color: Theme.of(context).textTheme.bodyMedium?.color,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -95,7 +103,8 @@ class CaseDetailsScreen extends StatelessWidget {
                   value,
                   style: TextStyle(
                     fontSize: 16,
-                    color: valueColor ?? AppTheme.textPrimary,
+                    color: valueColor ??
+                        Theme.of(context).textTheme.bodyLarge?.color,
                     fontWeight: FontWeight.w600,
                   ),
                   maxLines: maxLines,

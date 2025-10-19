@@ -1,12 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../core/theme/app_theme.dart';
-
 
 import 'package:legal_assist/features/lawyer/data/models/client_model.dart';
 import 'package:legal_assist/features/lawyer/data/lawyer_client_service.dart';
-import 'package:legal_assist/features/lawyer/data/models/case_model.dart';
 import 'package:legal_assist/features/lawyer/presentation/screens/client_cases_screen.dart';
-
 
 class LawyerClientsScreen extends StatefulWidget {
   final VoidCallback onBack;
@@ -126,7 +122,7 @@ class _LawyerClientsScreenState extends State<LawyerClientsScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -147,9 +143,12 @@ class _LawyerClientsScreenState extends State<LawyerClientsScreen>
   Widget _buildHeader() {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [AppTheme.primaryBlue, AppTheme.accentBlue],
+          colors: [
+            Theme.of(context).primaryColor,
+            Theme.of(context).colorScheme.secondary
+          ],
         ),
         borderRadius: BorderRadius.only(
           bottomLeft: Radius.circular(24),
@@ -175,13 +174,13 @@ class _LawyerClientsScreenState extends State<LawyerClientsScreen>
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Theme.of(context).cardColor.withOpacity(0.08),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
               '$_totalClients Total',
-              style: const TextStyle(
-                color: Colors.white,
+              style: TextStyle(
+                color: Theme.of(context).textTheme.bodyLarge?.color,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -210,10 +209,10 @@ class _LawyerClientsScreenState extends State<LawyerClientsScreen>
                 )
               : null,
           filled: true,
-          fillColor: Colors.white,
+          fillColor: Theme.of(context).cardColor,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: AppTheme.borderColor),
+            borderSide: BorderSide(color: Theme.of(context).dividerColor),
           ),
         ),
       ),
@@ -224,17 +223,17 @@ class _LawyerClientsScreenState extends State<LawyerClientsScreen>
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
-        border: Border.all(color: AppTheme.borderColor),
+        border: Border.all(color: Theme.of(context).dividerColor),
         borderRadius: BorderRadius.circular(12),
       ),
       child: TabBar(
         controller: _tabController,
         indicator: BoxDecoration(
-          color: AppTheme.primaryBlue,
+          color: Theme.of(context).primaryColor,
           borderRadius: BorderRadius.circular(12),
         ),
         labelColor: Colors.white,
-        unselectedLabelColor: AppTheme.textPrimary,
+        unselectedLabelColor: Theme.of(context).textTheme.bodyMedium?.color,
         tabs: [
           Tab(text: 'All ($_totalClients)'),
           Tab(text: 'Active ($_activeClients)'),
@@ -250,15 +249,16 @@ class _LawyerClientsScreenState extends State<LawyerClientsScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.people_outline, size: 64, color: AppTheme.textSecondary),
+            Icon(Icons.people_outline,
+                size: 64, color: Theme.of(context).textTheme.bodyMedium?.color),
             const SizedBox(height: 16),
             Text(
               _searchController.text.isNotEmpty
                   ? 'No clients found matching "${_searchController.text}"'
                   : 'No clients found',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 16,
-                color: AppTheme.textSecondary,
+                color: Theme.of(context).textTheme.bodyMedium?.color,
               ),
               textAlign: TextAlign.center,
             ),
@@ -287,9 +287,9 @@ class _LawyerClientsScreenState extends State<LawyerClientsScreen>
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.borderColor),
+        border: Border.all(color: Theme.of(context).dividerColor),
       ),
       child: Column(
         children: [
@@ -313,10 +313,11 @@ class _LawyerClientsScreenState extends State<LawyerClientsScreen>
                         Expanded(
                           child: Text(
                             client.fullName,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
-                              color: AppTheme.textPrimary,
+                              color:
+                                  Theme.of(context).textTheme.titleLarge?.color,
                             ),
                           ),
                         ),
@@ -326,7 +327,7 @@ class _LawyerClientsScreenState extends State<LawyerClientsScreen>
                           decoration: BoxDecoration(
                             color: client.isActive
                                 ? Colors.green.withOpacity(0.1)
-                                : AppTheme.borderColor,
+                                : Theme.of(context).dividerColor,
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
@@ -335,7 +336,10 @@ class _LawyerClientsScreenState extends State<LawyerClientsScreen>
                               fontSize: 11,
                               color: client.isActive
                                   ? Colors.green[700]
-                                  : AppTheme.textSecondary,
+                                  : Theme.of(context)
+                                      .textTheme
+                                      .bodyMedium
+                                      ?.color,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -347,9 +351,9 @@ class _LawyerClientsScreenState extends State<LawyerClientsScreen>
                       client.recentCaseTitle.isNotEmpty
                           ? client.recentCaseTitle
                           : client.recentCaseType,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14,
-                        color: AppTheme.textSecondary,
+                        color: Theme.of(context).textTheme.bodyMedium?.color,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -368,19 +372,19 @@ class _LawyerClientsScreenState extends State<LawyerClientsScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Cases',
                       style: TextStyle(
                         fontSize: 12,
-                        color: AppTheme.textSecondary,
+                        color: Theme.of(context).textTheme.bodyMedium?.color,
                       ),
                     ),
                     Text(
                       client.sessionCount,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: AppTheme.textPrimary,
+                        color: Theme.of(context).textTheme.titleLarge?.color,
                       ),
                     ),
                   ],
@@ -392,17 +396,17 @@ class _LawyerClientsScreenState extends State<LawyerClientsScreen>
                   children: [
                     Text(
                       client.isActive ? 'Last' : 'Ended',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
-                        color: AppTheme.textSecondary,
+                        color: Theme.of(context).textTheme.bodyMedium?.color,
                       ),
                     ),
                     Text(
                       client.lastDateText,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: AppTheme.textPrimary,
+                        color: Theme.of(context).textTheme.titleLarge?.color,
                       ),
                     ),
                   ],
@@ -431,7 +435,8 @@ class _LawyerClientsScreenState extends State<LawyerClientsScreen>
                       ),
                     );
                   },
-                  icon: const Icon(Icons.message, size: 18, color: Colors.white),
+                  icon:
+                      const Icon(Icons.message, size: 18, color: Colors.white),
                   label: const Text('Message'),
                 ),
               ),
@@ -460,15 +465,15 @@ class _LawyerClientsScreenState extends State<LawyerClientsScreen>
   Color _getCaseTypeColor(String caseType) {
     switch (caseType.toLowerCase()) {
       case 'criminal':
-        return AppTheme.primaryBlue;
+        return Theme.of(context).primaryColor;
       case 'family':
-        return AppTheme.accentBlue;
+        return Theme.of(context).colorScheme.secondary;
       case 'property':
         return Colors.orange;
       case 'corporate':
         return Colors.purple;
       default:
-        return AppTheme.textSecondary;
+        return Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey;
     }
   }
 

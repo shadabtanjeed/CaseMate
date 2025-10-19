@@ -1,12 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../core/theme/app_theme.dart';
 import 'package:legal_assist/features/lawyer/data/models/case_model.dart';
 import 'package:legal_assist/features/lawyer/data/lawyer_case_service.dart';
 import 'package:legal_assist/features/lawyer/presentation/screens/case_details_screen.dart';
 import 'package:legal_assist/features/lawyer/presentation/screens/update_case_status_sheet.dart';
-
-
-
 
 class LawyerCasesScreen extends StatefulWidget {
   final VoidCallback onBack;
@@ -58,7 +54,8 @@ class _LawyerCasesScreenState extends State<LawyerCasesScreen>
   void _handleTabChange() {
     if (_tabController.indexIsChanging) {
       setState(() {
-        _currentFilter = ['all', 'ongoing', 'pending', 'closed'][_tabController.index];
+        _currentFilter =
+            ['all', 'ongoing', 'pending', 'closed'][_tabController.index];
         _filterCases();
       });
     }
@@ -94,8 +91,10 @@ class _LawyerCasesScreenState extends State<LawyerCasesScreen>
 
   void _calculateStats() {
     _totalCount = _allCases.length;
-    _activeCount = _allCases.where((c) => c.status.toLowerCase() == 'ongoing').length;
-    _pendingCount = _allCases.where((c) => c.status.toLowerCase() == 'pending').length;
+    _activeCount =
+        _allCases.where((c) => c.status.toLowerCase() == 'ongoing').length;
+    _pendingCount =
+        _allCases.where((c) => c.status.toLowerCase() == 'pending').length;
   }
 
   void _filterCases() {
@@ -104,7 +103,8 @@ class _LawyerCasesScreenState extends State<LawyerCasesScreen>
         _filteredCases = _allCases;
       } else {
         _filteredCases = _allCases
-            .where((c) => c.status.toLowerCase() == _currentFilter.toLowerCase())
+            .where(
+                (c) => c.status.toLowerCase() == _currentFilter.toLowerCase())
             .toList();
       }
     });
@@ -128,7 +128,7 @@ class _LawyerCasesScreenState extends State<LawyerCasesScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -149,9 +149,12 @@ class _LawyerCasesScreenState extends State<LawyerCasesScreen>
   Widget _buildHeader() {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [AppTheme.primaryBlue, AppTheme.accentBlue],
+          colors: [
+            Theme.of(context).primaryColor,
+            Theme.of(context).colorScheme.secondary
+          ],
         ),
         borderRadius: BorderRadius.only(
           bottomLeft: Radius.circular(24),
@@ -186,24 +189,33 @@ class _LawyerCasesScreenState extends State<LawyerCasesScreen>
           Row(
             children: [
               Expanded(
-                child: _buildHeaderStat(
-                  _activeCount.toString(),
-                  'Active',
-                  Icons.folder_open,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6.0),
+                  child: _buildHeaderStat(
+                    _activeCount.toString(),
+                    'Active',
+                    Icons.folder_open,
+                  ),
                 ),
               ),
               Expanded(
-                child: _buildHeaderStat(
-                  _pendingCount.toString(),
-                  'Pending',
-                  Icons.hourglass_empty,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6.0),
+                  child: _buildHeaderStat(
+                    _pendingCount.toString(),
+                    'Pending',
+                    Icons.hourglass_empty,
+                  ),
                 ),
               ),
               Expanded(
-                child: _buildHeaderStat(
-                  _totalCount.toString(),
-                  'Total',
-                  Icons.folder,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6.0),
+                  child: _buildHeaderStat(
+                    _totalCount.toString(),
+                    'Total',
+                    Icons.folder,
+                  ),
                 ),
               ),
             ],
@@ -217,7 +229,7 @@ class _LawyerCasesScreenState extends State<LawyerCasesScreen>
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.2),
+        color: Theme.of(context).cardColor.withOpacity(0.06),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -264,11 +276,12 @@ class _LawyerCasesScreenState extends State<LawyerCasesScreen>
               : null,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: AppTheme.borderColor),
+            borderSide: BorderSide(color: Theme.of(context).dividerColor),
           ),
           filled: true,
-          fillColor: Colors.white,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          fillColor: Theme.of(context).cardColor,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         ),
       ),
     );
@@ -278,17 +291,17 @@ class _LawyerCasesScreenState extends State<LawyerCasesScreen>
     return Container(
       margin: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        border: Border.all(color: AppTheme.borderColor),
+        border: Border.all(color: Theme.of(context).dividerColor),
         borderRadius: BorderRadius.circular(12),
       ),
       child: TabBar(
         controller: _tabController,
         indicator: BoxDecoration(
-          color: AppTheme.primaryBlue,
+          color: Theme.of(context).primaryColor,
           borderRadius: BorderRadius.circular(12),
         ),
         labelColor: Colors.white,
-        unselectedLabelColor: AppTheme.textPrimary,
+        unselectedLabelColor: Theme.of(context).textTheme.bodyMedium?.color,
         isScrollable: true,
         tabs: const [
           Tab(text: 'All'),
@@ -306,15 +319,16 @@ class _LawyerCasesScreenState extends State<LawyerCasesScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.folder_open, size: 64, color: AppTheme.textSecondary),
+            Icon(Icons.folder_open,
+                size: 64, color: Theme.of(context).textTheme.bodyMedium?.color),
             const SizedBox(height: 16),
             Text(
               _searchController.text.isNotEmpty
                   ? 'No cases found matching "${_searchController.text}"'
                   : 'No cases found',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 16,
-                color: AppTheme.textSecondary,
+                color: Theme.of(context).textTheme.bodyMedium?.color,
               ),
               textAlign: TextAlign.center,
             ),
@@ -340,7 +354,7 @@ class _LawyerCasesScreenState extends State<LawyerCasesScreen>
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: caseModel.statusColor.withOpacity(0.3),
@@ -355,24 +369,26 @@ class _LawyerCasesScreenState extends State<LawyerCasesScreen>
               Expanded(
                 child: Text(
                   caseModel.caseTitle,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: AppTheme.textPrimary,
+                    color: Theme.of(context).textTheme.titleLarge?.color,
                   ),
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: _getPriorityColor(caseModel.priorityLevel).withOpacity(0.1),
+                  color: _getPriorityColor(context, caseModel.priorityLevel)
+                      .withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   caseModel.priorityLevel,
                   style: TextStyle(
                     fontSize: 11,
-                    color: _getPriorityColor(caseModel.priorityLevel),
+                    color: _getPriorityColor(context, caseModel.priorityLevel),
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -382,14 +398,16 @@ class _LawyerCasesScreenState extends State<LawyerCasesScreen>
           const SizedBox(height: 8),
           Row(
             children: [
-              const Icon(Icons.person, size: 14, color: AppTheme.textSecondary),
+              Icon(Icons.person,
+                  size: 14,
+                  color: Theme.of(context).textTheme.bodyMedium?.color),
               const SizedBox(width: 4),
               Expanded(
                 child: Text(
                   caseModel.userEmail,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
-                    color: AppTheme.textSecondary,
+                    color: Theme.of(context).textTheme.bodyMedium?.color,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -398,17 +416,17 @@ class _LawyerCasesScreenState extends State<LawyerCasesScreen>
               Container(
                 width: 4,
                 height: 4,
-                decoration: const BoxDecoration(
-                  color: AppTheme.textSecondary,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).textTheme.bodyMedium?.color,
                   shape: BoxShape.circle,
                 ),
               ),
               const SizedBox(width: 12),
               Text(
                 caseModel.caseType,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13,
-                  color: AppTheme.textSecondary,
+                  color: Theme.of(context).textTheme.bodyMedium?.color,
                 ),
               ),
             ],
@@ -479,7 +497,7 @@ class _LawyerCasesScreenState extends State<LawyerCasesScreen>
     );
   }
 
-  Color _getPriorityColor(String priority) {
+  Color _getPriorityColor(BuildContext context, String priority) {
     switch (priority.toLowerCase()) {
       case 'high':
         return Colors.red;
@@ -488,7 +506,7 @@ class _LawyerCasesScreenState extends State<LawyerCasesScreen>
       case 'low':
         return Colors.green;
       default:
-        return AppTheme.textSecondary;
+        return Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey;
     }
   }
 
