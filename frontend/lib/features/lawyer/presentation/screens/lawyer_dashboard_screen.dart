@@ -102,7 +102,7 @@ class _LawyerDashboardScreenState extends State<LawyerDashboardScreen>
         childAspectRatio: 1.5,
         physics: const NeverScrollableScrollPhysics(),
         children: [
-          _buildStatCard(Icons.people, '124', 'Total Clients', '+12%'),
+          _buildStatCard(Icons.people, '121', 'Total Clients', '+12%'),
           _buildStatCard(Icons.calendar_today, '8', 'This Week', '3 today'),
           _buildStatCard(Icons.star, '4.9', 'Avg Rating', '124 reviews'),
           _buildStatCard(Icons.attach_money, '\$12.5k', 'This Month', '+8%'),

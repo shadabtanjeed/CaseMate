@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:legal_assist/features/profile/presentation/screens/user_transactions_screen.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/theme_provider.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -372,6 +373,24 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     context,
                     MaterialPageRoute(
                       builder: (context) => const PersonalDetailsScreen(),
+                    ),
+                  );
+                },
+              ),
+              const Divider(height: 1),
+              // ADD THIS: Transaction History Button
+              _buildListTile(
+                context,
+                Icons.receipt_long_outlined,
+                'Transaction History',
+                'View your payment history',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => UserTransactionsScreen(
+                        onBack: () => Navigator.pop(context),
+                      ),
                     ),
                   );
                 },
