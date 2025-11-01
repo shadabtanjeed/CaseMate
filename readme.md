@@ -12,7 +12,7 @@ CaseMate is a cross-platform legal assistant application composed of a Flutter f
 
 - AI-powered legal chatbot (Groq/OpenAI OSS 70b)
 - Lawyer discovery and search by specialization
-- Book appointments and consultations with lawyers including video call
+- Book appointments and consultations with lawyers including video call (through Jitsi Meet)
 - Secure authentication and registration
 - View and manage upcoming sessions
 - Profile management
