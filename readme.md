@@ -1,5 +1,5 @@
 <div align="center">
-  <img width="600" alt="CaseMate Logo" src="https://github.com/user-attachments/assets/ef0a4065-45e7-4106-b6b2-bcf3a2ce91e6" />
+  <img width="400" alt="CaseMate Logo" src="https://github.com/user-attachments/assets/ef0a4065-45e7-4106-b6b2-bcf3a2ce91e6" />
 </div>
 
 <p></p>
