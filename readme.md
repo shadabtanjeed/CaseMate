@@ -90,7 +90,7 @@ CaseMate is a cross-platform legal assistant application composed of a Flutter f
 ## Requirements
 
 - Python 3.11 (recommended) for backend
-- Flutter SDK for frontend (see `frontend/pubspec.yaml`)
+- Flutter SDK for frontend (see `frontend/pubspec.yaml` for exact version)
 - MongoDB instance
 - Groq API key (for AI chatbot)
 - SSLCommerz API credentials
